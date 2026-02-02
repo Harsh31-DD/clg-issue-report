@@ -236,7 +236,7 @@ export const ReportIncident = () => {
 
     return (
         <div style={{ maxWidth: '720px', margin: '0 auto', padding: 'max(20px, 4vw)', width: '100%' }}>
-            <GlassyCard style={{
+            <GlassyCard glow style={{
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '40px',
@@ -594,7 +594,7 @@ export const ReportIncident = () => {
 
                                 <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
                                     <Button variant="secondary" onClick={prevStep} style={{ flex: 1, height: '56px' }}>Back</Button>
-                                    <Button onClick={handleSubmit} loading={loading} style={{
+                                    <Button onClick={handleSubmit} loading={loading} glow style={{
                                         flex: 2,
                                         height: '56px',
                                         background: 'linear-gradient(115deg, #E65A1F, #FDA136)',

@@ -103,7 +103,7 @@ export const AuthPage = () => {
                     Return to Home
                 </Link>
 
-                <GlassyCard style={{
+                <GlassyCard glow style={{
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '40px',
@@ -250,6 +250,7 @@ export const AuthPage = () => {
 
                         <Button
                             type="submit"
+                            glow
                             style={{
                                 width: '100%',
                                 height: '56px',

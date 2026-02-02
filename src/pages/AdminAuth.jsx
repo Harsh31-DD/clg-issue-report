@@ -52,7 +52,7 @@ export const AdminAuth = () => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
             >
-                <GlassyCard style={{
+                <GlassyCard glow style={{
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '40px',
@@ -134,7 +134,7 @@ export const AdminAuth = () => {
                             </motion.div>
                         )}
 
-                        <Button type="submit" style={{ width: '100%', height: '56px', background: 'linear-gradient(135deg, #7A0F1A, #E65A1F)' }} loading={loading}>
+                        <Button type="submit" glow style={{ width: '100%', height: '56px', background: 'linear-gradient(135deg, #7A0F1A, #E65A1F)' }} loading={loading}>
                             Verify Authorization <ArrowRight size={20} style={{ marginLeft: '12px' }} />
                         </Button>
                     </form>

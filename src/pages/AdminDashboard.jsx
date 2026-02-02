@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, Clock, CheckCircle2, Shield, Search, ChevronRight, User, Mail, ThumbsUp } from 'lucide-react';
-import { GlassyCard, Input } from '../components/UI';
+import { GlassyCard, Input, useToast } from '../components/UI';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useIncidents } from '../hooks/useIncidents';
@@ -16,6 +16,7 @@ export const AdminDashboard = () => {
     const STATUSES = ['All', 'Pending', 'Submitted', 'In Progress', 'Resolved'];
     const navigate = useNavigate();
     const { incidents, loading, refetch } = useIncidents();
+    const { addToast } = useToast();
 
     useEffect(() => {
         let mounted = true;
@@ -102,10 +103,10 @@ export const AdminDashboard = () => {
                 gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
                 gap: '20px'
             }}>
-                <StatCard label="Total Workload" value={stats.total} icon={<Clock size={18} />} accent="#E65A1F" />
-                <StatCard label="Pending Action" value={stats.pending} icon={<AlertCircle size={18} />} accent="#facc15" />
-                <StatCard label="In Progress" value={stats.inProgress} icon={<Clock size={18} />} accent="#60a5fa" />
-                <StatCard label="Resolved" value={stats.resolved} icon={<CheckCircle2 size={18} />} accent="#10b981" />
+                <StatCard label="Total Workload" value={stats.total} icon={<Clock size={18} />} accent="#E65A1F" glow />
+                <StatCard label="Pending Action" value={stats.pending} icon={<AlertCircle size={18} />} accent="#facc15" glow />
+                <StatCard label="In Progress" value={stats.inProgress} icon={<Clock size={18} />} accent="#60a5fa" glow />
+                <StatCard label="Resolved" value={stats.resolved} icon={<CheckCircle2 size={18} />} accent="#10b981" glow />
             </div>
 
             <GlassyCard style={{ padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.03)' }}>
@@ -257,8 +258,8 @@ export const AdminDashboard = () => {
     );
 };
 
-const StatCard = ({ label, value, icon, accent }) => (
-    <GlassyCard style={{ padding: '20px', borderLeft: `3px solid ${accent}`, backgroundColor: 'rgba(255,255,255,0.02)' }}>
+const StatCard = ({ label, value, icon, accent, glow }) => (
+    <GlassyCard style={{ padding: '20px', borderLeft: `3px solid ${accent}`, backgroundColor: 'rgba(255,255,255,0.02)' }} glow={glow}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'rgba(255,255,255,0.25)', marginBottom: '8px' }}>
             <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
             {icon}

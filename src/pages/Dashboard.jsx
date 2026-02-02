@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Clock, CheckCircle2, AlertCircle, Plus, ChevronRight, LayoutGrid, ThumbsUp, MapPin } from 'lucide-react';
-import { GlassyCard, Button } from '../components/UI';
+import { GlassyCard, Button, useToast } from '../components/UI';
 import { supabase } from '../lib/supabase';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,7 @@ export const Dashboard = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { incidents, loading, error, refetch, toggleVote } = useIncidents(user?.id);
+    const { addToast } = useToast();
 
     useEffect(() => {
         if (!user?.id) return;
@@ -84,7 +85,7 @@ export const Dashboard = () => {
                     </h1>
                 </div>
                 <Link to="/report" style={{ textDecoration: 'none' }}>
-                    <Button style={{ padding: '10px 20px' }}>
+                    <Button glow style={{ padding: '10px 24px' }}>
                         <Plus size={18} /> New Report
                     </Button>
                 </Link>
@@ -95,16 +96,16 @@ export const Dashboard = () => {
                 gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
                 gap: '20px'
             }}>
-                <StatCard label="Total Filed" value={incidents.length} icon={<Clock size={18} />} accent="#E65A1F" />
-                <StatCard label="Successful" value={incidents.filter(i => i.status === 'Resolved').length} icon={<CheckCircle2 size={18} />} accent="#10b981" />
-                <StatCard label="In Review" value={incidents.filter(i => i.status === 'Submitted' || i.status === 'Pending').length} icon={<AlertCircle size={18} />} accent="#facc15" />
-                <StatCard label="Active" value={incidents.filter(i => i.status === 'In Progress').length} icon={<AlertCircle size={18} />} accent="#60a5fa" />
+                <StatCard label="Total Filed" value={incidents.length} icon={<Clock size={18} />} accent="#E65A1F" glow />
+                <StatCard label="Successful" value={incidents.filter(i => i.status === 'Resolved').length} icon={<CheckCircle2 size={18} />} accent="#10b981" glow />
+                <StatCard label="In Review" value={incidents.filter(i => i.status === 'Submitted' || i.status === 'Pending').length} icon={<AlertCircle size={18} />} accent="#facc15" glow />
+                <StatCard label="Active" value={incidents.filter(i => i.status === 'In Progress').length} icon={<AlertCircle size={18} />} accent="#60a5fa" glow />
             </div>
 
             {error && (
                 <GlassyCard style={{ textAlign: 'center', border: '1px solid rgba(230, 90, 31, 0.2)' }}>
-                    <p style={{ color: '#E65A1F', margin: '0 0 12px 0', fontSize: '14px' }}>Sync issues detected.</p>
-                    <Button variant="secondary" size="sm" onClick={refetch}>Retry Sync</Button>
+                    <p style={{ color: '#E65A1F', margin: '0 0 12px 0', fontSize: '14px' }}>Registry sync interrupted.</p>
+                    <Button variant="secondary" size="sm" onClick={() => { refetch(); addToast('Re-syncing with registry...', 'info'); }}>Retry Sync</Button>
                 </GlassyCard>
             )}
 
@@ -197,8 +198,8 @@ export const Dashboard = () => {
     );
 };
 
-const StatCard = ({ label, value, icon, accent }) => (
-    <GlassyCard style={{ padding: '20px', borderLeft: `3px solid ${accent}`, backgroundColor: 'rgba(255,255,255,0.02)' }}>
+const StatCard = ({ label, value, icon, accent, glow }) => (
+    <GlassyCard style={{ padding: '20px', borderLeft: `3px solid ${accent}`, backgroundColor: 'rgba(255,255,255,0.02)' }} glow={glow}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'rgba(255,255,255,0.25)', marginBottom: '8px' }}>
             <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
             {icon}

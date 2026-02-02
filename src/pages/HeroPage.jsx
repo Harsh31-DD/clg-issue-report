@@ -74,7 +74,7 @@ export const HeroPage = () => {
                     {session ? (
                         <>
                             <Link to="/dashboard" style={{ textDecoration: 'none' }}>
-                                <Button size="lg" style={{ padding: '16px 32px', fontSize: '18px' }}>
+                                <Button size="lg" glow style={{ padding: '16px 32px', fontSize: '18px' }}>
                                     Launch Dashboard <ArrowRight size={20} style={{ marginLeft: '12px' }} />
                                 </Button>
                             </Link>

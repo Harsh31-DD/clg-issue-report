@@ -92,6 +92,7 @@ export const Button = ({
     size = 'md',
     loading,
     style,
+    glow = false,
     ...props
 }) => {
     const baseStyle = {
@@ -117,7 +118,7 @@ export const Button = ({
         primary: {
             background: 'linear-gradient(135deg, #E65A1F, #FDA136)',
             color: '#FFFFFF',
-            boxShadow: '0 4px 12px rgba(230, 90, 31, 0.2)'
+            boxShadow: glow ? '0 0 20px rgba(230, 90, 31, 0.3)' : '0 4px 12px rgba(230, 90, 31, 0.2)'
         },
         secondary: {
             backgroundColor: 'rgba(255, 255, 255, 0.06)',
@@ -144,29 +145,33 @@ export const Button = ({
             style={combinedStyle}
             onMouseEnter={(e) => {
                 if (!loading && !props.disabled) {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
                     if (variant === 'primary') {
-                        e.currentTarget.style.boxShadow = '0 8px 20px rgba(230, 90, 31, 0.35)';
-                        e.currentTarget.style.filter = 'brightness(1.08)';
+                        e.currentTarget.style.boxShadow = '0 12px 24px rgba(230, 90, 31, 0.45)';
+                        e.currentTarget.style.filter = 'brightness(1.1)';
                     } else if (variant === 'secondary') {
                         e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
                         e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.3)';
                     } else if (variant === 'outline') {
                         e.currentTarget.style.backgroundColor = 'rgba(253, 161, 54, 0.1)';
+                        e.currentTarget.style.boxShadow = '0 0 20px rgba(253, 161, 54, 0.2)';
                     }
                 }
             }}
             onMouseLeave={(e) => {
                 if (!loading && !props.disabled) {
-                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
                     e.currentTarget.style.filter = 'none';
                     if (variant === 'primary') {
                         e.currentTarget.style.boxShadow = variants.primary.boxShadow;
                     } else if (variant === 'secondary') {
                         e.currentTarget.style.backgroundColor = variants.secondary.backgroundColor;
                         e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                        e.currentTarget.style.boxShadow = 'none';
                     } else if (variant === 'outline') {
                         e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.boxShadow = 'none';
                     }
                 }
             }}
@@ -193,53 +198,66 @@ export const Input = ({ style, ...props }) => (
         {...props}
         style={{
             width: '100%',
-            backgroundColor: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '10px',
-            padding: '12px 14px',
+            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '12px',
+            padding: '12px 16px',
             color: '#FFFFFF',
             fontSize: '15px',
             outline: 'none',
-            transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
             fontFamily: 'inherit',
             ...style
         }}
         onFocus={(e) => {
             e.currentTarget.style.borderColor = '#FDA136';
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
-            e.currentTarget.style.boxShadow = '0 0 0 4px rgba(253, 161, 54, 0.12)';
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+            e.currentTarget.style.boxShadow = '0 0 0 4px rgba(253, 161, 54, 0.08)';
             e.currentTarget.style.transform = 'translateY(-1px)';
         }}
         onBlur={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
             e.currentTarget.style.boxShadow = 'none';
             e.currentTarget.style.transform = 'translateY(0)';
         }}
     />
 );
 
-export const GlassyCard = ({ children, style, hoverable = false }) => {
+export const GlassyCard = ({ children, style, hoverable = false, glow = false }) => {
     return (
         <motion.div
             whileHover={hoverable ? {
-                y: -4,
-                backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                borderColor: 'rgba(253, 161, 54, 0.15)',
-                boxShadow: '0 16px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(253, 161, 54, 0.1)'
+                y: -6,
+                backgroundColor: 'rgba(255, 255, 255, 0.07)',
+                borderColor: 'rgba(253, 161, 54, 0.2)',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(253, 161, 54, 0.1)'
             } : {}}
-            transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '20px',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+                borderRadius: '24px',
                 padding: '24px',
-                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
+                boxShadow: glow ? '0 8px 32px rgba(230, 90, 31, 0.1)' : '0 8px 30px rgba(0, 0, 0, 0.3)',
+                position: 'relative',
+                overflow: 'hidden',
                 ...style
             }}
         >
+            {glow && (
+                <div style={{
+                    position: 'absolute',
+                    top: '-50%',
+                    left: '-50%',
+                    width: '200%',
+                    height: '200%',
+                    background: 'radial-gradient(circle at center, rgba(253, 161, 54, 0.05) 0%, transparent 60%)',
+                    pointerEvents: 'none'
+                }} />
+            )}
             {children}
         </motion.div>
     );
