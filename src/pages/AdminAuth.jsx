@@ -1,161 +1,102 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Shield, Lock, Mail, ArrowRight } from 'lucide-react';
-import { Button, Input, GlassyCard, useToast } from '../components/UI';
+import React, { useState } from 'react';
+import { Shield, Lock, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Button, Input, GlassyCard, useToast, Badge } from '../components/UI';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
-import { AuthLayout } from '../components/AuthLayout';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
-export const AdminAuth = () => {
+const AdminAuth = () => {
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState(null);
     const { addToast } = useToast();
     const navigate = useNavigate();
 
     const handleAuth = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setError(null);
 
         try {
-            const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-            if (authError) throw authError;
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw error;
 
-            if (data.user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', data.user.id)
-                    .single();
-
-                if (profile?.role?.toLowerCase() !== 'admin') {
-                    await supabase.auth.signOut();
-                    addToast('Unauthorized access. Personnel only.', 'error');
-                    throw new Error('This terminal is reserved for administrative personnel only.');
-                }
-                addToast('Access granted. Welcome, Administrator.', 'success');
-                window.location.href = '/admin-dashboard';
+            const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
+            if (profile?.role !== 'admin') {
+                await supabase.auth.signOut();
+                throw new Error('Authorized personnel only. Access denied.');
             }
+
+            addToast('Access cleared. Welcome, Administrator.', 'success');
+            navigate('/admin-dashboard');
         } catch (err) {
-            setError(err.message || 'An unexpected error occurred');
+            addToast(err.message, 'error');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <AuthLayout>
+        <div className="max-w-[500px] mx-auto w-full px-4">
             <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 30 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
             >
-                <GlassyCard glow style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '40px',
-                    padding: '48px',
-                    border: '1px solid #7A0F1A',
-                    boxShadow: '0 30px 60px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(122, 15, 26, 0.1)'
-                }}>
-                    <div style={{ textAlign: 'center' }}>
-                        <div style={{
-                            width: '64px',
-                            height: '64px',
-                            margin: '0 auto 24px',
-                            background: 'linear-gradient(135deg, #7A0F1A, #E65A1F)',
-                            borderRadius: '20px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 0 30px rgba(122, 15, 26, 0.4)'
-                        }}>
-                            <Shield size={32} color="white" />
+                <GlassyCard className="p-10 md:p-14 border-white/5 shadow-[0_30px_60px_-15px_rgba(91,238,252,0.05)] relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-6">
+                        <Badge variant="error" className="h-6 px-3 text-[9px] uppercase font-black tracking-widest bg-red-500/10 text-red-400 border-red-500/20">Restricted</Badge>
+                    </div>
+                    
+                    <div className="text-center mb-12">
+                        <div className="w-20 h-20 rounded-3xl bg-primary-cyan/5 border border-primary-cyan/10 flex items-center justify-center mx-auto mb-8 text-primary-cyan group-hover:scale-105 transition-transform duration-500">
+                            <Shield size={40} />
                         </div>
-                        <h2 style={{
-                            fontSize: '32px',
-                            fontWeight: '800',
-                            color: 'white',
-                            margin: '0 0 12px 0',
-                            fontFamily: 'Outfit',
-                            letterSpacing: '-1px'
-                        }}>
-                            Admin Portal
-                        </h2>
-                        <p style={{ color: 'rgba(237, 237, 243, 0.4)', fontSize: '15px', margin: 0 }}>
-                            Authorized Personnel Only. <br />
-                            Please verify your administrative credentials.
-                        </p>
+                        <h2 className="text-3xl md:text-4xl font-black text-white font-display uppercase tracking-tighter">Administrative Access</h2>
+                        <p className="text-[13px] text-white/20 mt-3 font-medium px-4">Enter your administrative credentials to continue to the dashboard.</p>
                     </div>
 
-                    <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <div style={{ position: 'relative' }}>
-                            <Mail style={{ position: 'absolute', left: '16px', top: '14px', color: 'rgba(122, 15, 26, 0.6)' }} size={18} />
-                            <Input
-                                type="email"
-                                placeholder="Admin ID / Email"
-                                style={{ paddingLeft: '48px', height: '52px', border: '1px solid rgba(122, 15, 26, 0.3)' }}
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
+                    <form onSubmit={handleAuth} className="flex flex-col gap-6">
+                        <div className="relative">
+                            <Mail size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/10" />
+                            <Input 
+                                type="email" 
+                                placeholder="Admin Email" 
+                                value={email} 
+                                onChange={e => setEmail(e.target.value)} 
+                                className="pl-14 h-14 border-white/5 focus:border-primary-cyan/40 focus:shadow-[0_0_20px_rgba(91,238,252,0.05)]" 
+                                required 
                             />
                         </div>
-
-                        <div style={{ position: 'relative' }}>
-                            <Lock style={{ position: 'absolute', left: '16px', top: '14px', color: 'rgba(122, 15, 26, 0.6)' }} size={18} />
-                            <Input
-                                type="password"
-                                placeholder="Security Key"
-                                style={{ paddingLeft: '48px', height: '52px', border: '1px solid rgba(122, 15, 26, 0.3)' }}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
+                        <div className="relative">
+                            <Lock size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/10" />
+                            <Input 
+                                type="password" 
+                                placeholder="Access Key" 
+                                value={password} 
+                                onChange={e => setPassword(e.target.value)} 
+                                className="pl-14 h-14 border-white/5 focus:border-primary-cyan/40 focus:shadow-[0_0_20px_rgba(91,238,252,0.05)]" 
+                                required 
                             />
                         </div>
-
-                        {error && (
-                            <motion.div
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                style={{
-                                    padding: '14px',
-                                    borderRadius: '12px',
-                                    background: 'rgba(122, 15, 26, 0.1)',
-                                    border: '1px solid rgba(122, 15, 26, 0.2)',
-                                    color: '#E65A1F',
-                                    fontSize: '13px',
-                                    lineHeight: '1.4',
-                                    textAlign: 'center'
-                                }}
-                            >
-                                {error}
-                            </motion.div>
-                        )}
-
-                        <Button type="submit" glow style={{ width: '100%', height: '56px', background: 'linear-gradient(135deg, #7A0F1A, #E65A1F)' }} loading={loading}>
-                            Verify Authorization <ArrowRight size={20} style={{ marginLeft: '12px' }} />
+                        <Button 
+                            type="submit" 
+                            loading={loading} 
+                            size="lg"
+                            className="w-full h-14 mt-4 uppercase font-black tracking-widest text-[11px] group"
+                        >
+                            Sign In to Portal <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
                         </Button>
                     </form>
 
-                    <button
-                        onClick={() => navigate('/auth')}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'rgba(255,255,255,0.2)',
-                            fontSize: '13px',
-                            cursor: 'pointer',
-                            transition: 'color 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
-                        onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
-                    >
-                        Return to Standard Node
-                    </button>
+                    <div className="mt-12 pt-8 border-t border-white/5 text-center">
+                        <Link to="/auth" className="text-white/20 hover:text-primary-cyan text-[11px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-3 no-underline group">
+                            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> Go back to Student Portal
+                        </Link>
+                    </div>
                 </GlassyCard>
             </motion.div>
-        </AuthLayout>
+        </div>
     );
 };
+
+export default AdminAuth;

@@ -1,173 +1,122 @@
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Shield, ArrowRight, Zap, Target, Lock } from 'lucide-react';
-import { Button } from '../components/UI';
+import { Shield, ArrowRight, Zap, Activity, Cpu, Lock, Sparkles } from 'lucide-react';
+import { Button, GlassyCard, Badge } from '../components/UI';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export const HeroPage = () => {
-    const { session } = useAuth();
+const FeatureCard = ({ icon, title, desc, delay }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5, delay }}
+    >
+        <GlassyCard hoverable className="h-full p-8 md:p-10 text-left group border-white/5">
+            <div className="w-14 h-14 rounded-2xl bg-primary-cyan/10 border border-primary-cyan/20 flex items-center justify-center mb-8 text-primary-cyan group-hover:scale-110 transition-transform duration-300">
+                {icon}
+            </div>
+            <h3 className="text-xl font-black text-white mb-3 font-display uppercase tracking-tight">{title}</h3>
+            <p className="text-[14px] text-white/40 leading-relaxed font-medium">
+                {desc}
+            </p>
+        </GlassyCard>
+    </motion.div>
+);
+
+const HeroPage = () => {
+    const { isAuthenticated } = useAuth();
 
     return (
-        <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '80vh',
-            textAlign: 'center',
-            padding: '0 20px'
-        }}>
+        <div className="relative min-h-[90vh] flex flex-col items-center justify-center py-20 px-6 text-center overflow-hidden">
+            {/* Background Decor */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary-cyan/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
+            
             <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
-                style={{ maxWidth: '900px' }}
+                className="max-w-4xl z-10"
             >
-                <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 16px',
-                    borderRadius: '9999px',
-                    backgroundColor: 'rgba(230, 90, 31, 0.1)',
-                    border: '1px solid rgba(230, 90, 31, 0.2)',
-                    color: '#FDA136',
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    marginBottom: '32px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.1em'
-                }}>
-                    <Zap size={16} />
-                    2026 Campus Safety Standard
+                <div className="mb-8">
+                    <Badge variant="primary" className="pl-3 pr-4 py-1.5 flex items-center gap-2 mx-auto w-fit">
+                        <Sparkles size={12} className="text-primary-cyan animate-pulse" />
+                        <span className="text-[9px] uppercase font-black tracking-[0.2em]">Campus Reporting Active</span>
+                    </Badge>
                 </div>
 
-                <h1 style={{
-                    fontSize: 'clamp(40px, 8vw, 84px)',
-                    fontWeight: 800,
-                    color: 'white',
-                    lineHeight: 0.95,
-                    marginBottom: '24px',
-                    fontFamily: 'Outfit',
-                    letterSpacing: '-2px'
-                }}>
-                    Revolutionizing <br />
-                    <span style={{
-                        background: 'linear-gradient(135deg, #E65A1F, #FDA136)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent'
-                    }}>Campus Security</span>
+                <h1 className="text-5xl md:text-8xl font-black text-white leading-[0.9] mb-8 font-display tracking-tighter uppercase">
+                    College Issue <br />
+                    <span className="shine-text">Reporting System</span>
                 </h1>
 
-                <p style={{
-                    fontSize: 'clamp(16px, 2vw, 20px)',
-                    color: 'rgba(237, 237, 243, 0.6)',
-                    maxWidth: '650px',
-                    margin: '0 auto 48px',
-                    lineHeight: 1.6
-                }}>
-                    CIRTS is an advanced AI-driven transparency system for university incident reporting.
-                    Seamlessly connect students and staff for a safer campus environment.
+                <p className="text-base md:text-lg text-white/40 max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
+                    Report and track campus issues easily. Ensuring a better campus environment through transparent and quick reporting.
                 </p>
 
-                <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    {session ? (
+                <div className="flex flex-col sm:flex-row gap-5 justify-center items-center">
+                    {isAuthenticated ? (
                         <>
-                            <Link to="/dashboard" style={{ textDecoration: 'none' }}>
-                                <Button size="lg" glow style={{ padding: '16px 32px', fontSize: '18px' }}>
-                                    Launch Dashboard <ArrowRight size={20} style={{ marginLeft: '12px' }} />
+                            <Link to="/dashboard" className="no-underline w-full sm:w-auto">
+                                <Button size="lg" className="w-full sm:min-w-[200px] h-14 text-sm font-bold tracking-wider uppercase group">
+                                    Dashboard <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                 </Button>
                             </Link>
-                            <Link to="/report" style={{ textDecoration: 'none' }}>
-                                <Button variant="secondary" size="lg" style={{ padding: '16px 32px', fontSize: '18px' }}>
-                                    Report Incident
+                            <Link to="/report" className="no-underline w-full sm:w-auto">
+                                <Button variant="secondary" size="lg" className="w-full sm:min-w-[200px] h-14 text-sm font-bold tracking-wider uppercase">
+                                    Report Issue
                                 </Button>
                             </Link>
                         </>
                     ) : (
                         <>
-                            <Link to="/auth" style={{ textDecoration: 'none' }}>
-                                <Button size="lg" style={{ padding: '16px 32px', fontSize: '18px' }}>
-                                    Initialize Secure Access <ArrowRight size={20} style={{ marginLeft: '12px' }} />
+                            <Link to="/auth" className="no-underline w-full sm:w-auto">
+                                <Button size="lg" className="w-full sm:min-w-[200px] h-14 text-sm font-bold tracking-wider uppercase group">
+                                    Login <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                 </Button>
                             </Link>
-                            <Link to="/admin-auth" style={{ textDecoration: 'none' }}>
-                                <Button variant="secondary" size="lg" style={{ padding: '16px 32px', fontSize: '18px' }}>
-                                    View System Ops
+                            <Link to="/report" className="no-underline w-full sm:w-auto">
+                                <Button variant="secondary" size="lg" className="w-full sm:min-w-[200px] h-14 text-sm font-bold tracking-wider uppercase">
+                                    Report Issue
                                 </Button>
                             </Link>
                         </>
                     )}
                 </div>
+
+                {/* Sub-link for Staff */}
+                <div className="mt-8">
+                    <Link to="/admin-auth" className="text-[10px] text-white/20 hover:text-primary-cyan transition-colors font-black uppercase tracking-[0.2em] no-underline">
+                        Are you Staff? Access Admin Terminal
+                    </Link>
+                </div>
             </motion.div>
 
-            {/* Feature Cards */}
-            <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                    gap: '24px',
-                    width: '100%',
-                    maxWidth: '1200px',
-                    marginTop: '100px'
-                }}
-            >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl mt-32 relative z-10">
                 <FeatureCard
-                    icon={<Shield size={24} color="#FDA136" />}
+                    delay={0.1}
+                    icon={<Activity size={24} />}
+                    title="Real-time Track"
+                    desc="Track the status of your reported issues in real-time as they resolve."
+                />
+                <FeatureCard
+                    delay={0.2}
+                    icon={<Cpu size={24} />}
                     title="Instant Alerts"
-                    desc="Real-time notification system connecting campus security to incident reports."
+                    desc="Receive instant notifications on updates and resolutions."
                 />
                 <FeatureCard
-                    icon={<Target size={24} color="#E65A1F" />}
-                    title="Precise Tracking"
-                    desc="AI-powered categorization and location mapping for every submission."
+                    delay={0.3}
+                    icon={<Lock size={24} />}
+                    title="Secure Login"
+                    desc="Access your account securely with multi-platform verification."
                 />
-                <FeatureCard
-                    icon={<Lock size={24} color="#7A0F1A" />}
-                    title="Encrypted Privacy"
-                    desc="Industry-standard AES encryption for both staff and anonymous reporters."
-                />
-            </motion.div>
+            </div>
+            
+            {/* Visual Accents */}
+            <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
         </div>
     );
 };
 
-const FeatureCard = ({ icon, title, desc }) => (
-    <div style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.04)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: '24px',
-        padding: '32px',
-        textAlign: 'left',
-        transition: 'all 0.3s'
-    }}
-        onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
-            e.currentTarget.style.transform = 'translateY(-8px)';
-            e.currentTarget.style.borderColor = 'rgba(253, 161, 54, 0.3)';
-        }}
-        onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.04)';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-        }}
-    >
-        <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
-            backgroundColor: 'rgba(255,255,255,0.05)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '20px'
-        }}>
-            {icon}
-        </div>
-        <h3 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '12px', color: 'white' }}>{title}</h3>
-        <p style={{ fontSize: '15px', color: 'rgba(237, 237, 243, 0.5)', lineHeight: 1.5, margin: 0 }}>{desc}</p>
-    </div>
-);
+export default HeroPage;

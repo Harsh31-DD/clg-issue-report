@@ -1,516 +1,247 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Send, User, Clock, Shield, CheckCircle, MessageSquare, ThumbsUp, Activity } from 'lucide-react';
-import { GlassyCard, Button, Input, useToast } from '../components/UI';
+import React, { useEffect, useState } from 'react';
+import { GlassyCard, Badge, Button, useToast } from '../components/UI';
+import { Shield, Clock, ChevronLeft, MapPin, User, FileText, Activity, AlertCircle, Save, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 
-export const IssueDetail = () => {
+const IssueDetail = () => {
     const { id } = useParams();
-    const navigate = useNavigate();
-    const { user, userRole, loading: authLoading } = useAuth();
+    const { user } = useAuth();
     const [incident, setIncident] = useState(null);
-    const [replies, setReplies] = useState([]);
-    const [auditLogs, setAuditLogs] = useState([]);
-    const [incidentFiles, setIncidentFiles] = useState([]);
-    const [replyContent, setReplyContent] = useState('');
     const [loading, setLoading] = useState(true);
-    const [sending, setSending] = useState(false);
-    const [voting, setVoting] = useState(false);
-    const [adminNote, setAdminNote] = useState('');
-    const [savingNote, setSavingNote] = useState(false);
+    const [updating, setUpdating] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
     const { addToast } = useToast();
-    const scrollRef = useRef(null);
-
-    const fetchReplies = useCallback(async (mounted, abortSignal) => {
-        if (!id) return;
-        try {
-            const { data, error } = await supabase
-                .from('issue_replies')
-                .select('*, profiles(name, role)')
-                .eq('issue_id', id)
-                .order('created_at', { ascending: true })
-                .abortSignal(abortSignal);
-
-            if (mounted && !error) setReplies(data || []);
-        } catch (err) {
-            if (err.name !== 'AbortError') console.error('[IssueDetail] Reply sync error:', err);
-        }
-    }, [id]);
-
-    const fetchAuditLogs = useCallback(async (mounted, abortSignal) => {
-        if (!id || userRole !== 'admin') return;
-        try {
-            const { data, error } = await supabase
-                .from('incident_logs')
-                .select('*, profiles:changed_by(name)')
-                .eq('incident_id', id)
-                .order('created_at', { ascending: false })
-                .abortSignal(abortSignal);
-
-            if (mounted && !error) setAuditLogs(data || []);
-        } catch (err) {
-            if (err.name !== 'AbortError') console.error('[IssueDetail] Audit log fetch failed:', err);
-        }
-    }, [id, userRole]);
-
-    const fetchData = useCallback(async (mounted, abortSignal) => {
-        if (authLoading || !user || !id) return;
-
-        try {
-            const { data: incidentData, error: incError } = await supabase
-                .from('issues')
-                .select('*, profiles(name, email), incident_votes(user_id)')
-                .eq('id', id)
-                .single()
-                .abortSignal(abortSignal);
-
-            if (!mounted) return;
-            if (incError) {
-                if (incError.name === 'AbortError') return;
-                throw incError;
-            }
-
-            const formatted = {
-                ...incidentData,
-                votes_count: incidentData.incident_votes?.length || 0,
-                user_has_voted: incidentData.incident_votes?.some((v) => v.user_id === user.id) || false
-            };
-
-            setIncident(formatted);
-            setAdminNote(formatted.admin_note || '');
-
-            const { data: files } = await supabase
-                .from('issue_images')
-                .select('*')
-                .eq('issue_id', id)
-                .abortSignal(abortSignal);
-
-            if (mounted) setIncidentFiles(files || []);
-
-            await fetchReplies(mounted, abortSignal);
-            await fetchAuditLogs(mounted, abortSignal);
-        } catch (err) {
-            if (mounted && err.name !== 'AbortError') {
-                console.error('[IssueDetail] Data fetch failed:', err);
-            }
-        } finally {
-            if (mounted) setLoading(false);
-        }
-    }, [authLoading, user, id, fetchReplies, fetchAuditLogs]);
+    const navigate = useNavigate();
 
     useEffect(() => {
-        let mounted = true;
-        const controller = new AbortController();
-
-        fetchData(mounted, controller.signal);
-
-        const channel = supabase
-            .channel(`issue-updates-${id}`)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'issue_replies',
-                filter: `issue_id=eq.${id}`
-            }, () => fetchReplies(mounted, controller.signal))
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'incident_logs',
-                filter: `incident_id=eq.${id}`
-            }, () => fetchAuditLogs(mounted, controller.signal))
-            .subscribe();
-
-        return () => {
-            mounted = false;
-            controller.abort();
-            supabase.removeChannel(channel);
+        const fetchOne = async () => {
+            try {
+                const { data, error } = await supabase.from('incidents').select('*').eq('id', id).single();
+                if (error) throw error;
+                setIncident(data);
+                
+                // Check if user is admin
+                if (user) {
+                    const { data: profile, error: pError } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+                    if (pError) throw pError;
+                    setIsAdmin(profile?.role === 'admin');
+                }
+            } catch (err) {
+                console.error("IssueDetail fetch error:", err);
+                addToast(err.message, 'error');
+            } finally {
+                setLoading(false);
+            }
         };
-    }, [id, fetchData, fetchReplies, fetchAuditLogs]);
+        fetchOne();
+    }, [id, user]);
 
-    useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [replies]);
-
-    const handleSendReply = async (e) => {
-        e.preventDefault();
-        if (!replyContent.trim() || sending || !user || !id) return;
-
-        setSending(true);
+    const handleUpdate = async (field, value, customToast) => {
+        setUpdating(true);
         try {
             const { error } = await supabase
-                .from('issue_replies')
-                .insert({
-                    issue_id: id,
-                    user_id: user.id,
-                    content: replyContent
-                });
-            if (error) throw error;
-            setReplyContent('');
-            addToast('Reply transmitted to timeline.', 'success');
-            await fetchReplies(true);
-        } catch (err) {
-            console.error('[IssueDetail] Reply failed:', err);
-            addToast('Transmission failure.', 'error');
-        } finally {
-            setSending(false);
-        }
-    };
-
-    const toggleVote = async () => {
-        if (!user || !id || voting) return;
-        setVoting(true);
-        try {
-            if (incident.user_has_voted) {
-                await supabase.from('incident_votes').delete().eq('incident_id', id).eq('user_id', user.id);
-            } else {
-                await supabase.from('incident_votes').insert({ incident_id: id, user_id: user.id });
-            }
-            fetchData(true);
-        } catch (err) {
-            console.error('[IssueDetail] Vote failed:', err);
-        } finally {
-            setVoting(false);
-        }
-    };
-
-    const updateStatus = async (newStatus) => {
-        if (!id) return;
-        const confirmMsg = {
-            'Resolved': 'Confirm resolution of case?',
-            'In Progress': 'Initiate work on case?',
-            'Under Review': 'Mark case as being reviewed?'
-        };
-
-        if (confirmMsg[newStatus] && !window.confirm(confirmMsg[newStatus])) return;
-
-        try {
-            const updates = {
-                status: newStatus,
-                status_updated_at: new Date().toISOString()
-            };
-
-            if (newStatus === 'Resolved') {
-                updates.resolved_at = new Date().toISOString();
-            }
-
-            const { error } = await supabase
-                .from('issues')
-                .update(updates)
+                .from('incidents')
+                .update({ [field]: value })
                 .eq('id', id);
 
             if (error) throw error;
-            setIncident({ ...incident, ...updates });
-            addToast(`Case status shifted to ${newStatus}.`, 'success');
-            await fetchAuditLogs(true);
+            
+            setIncident(prev => ({ ...prev, [field]: value }));
+            addToast(customToast || `Record updated: ${field} set to ${value}`, 'success');
         } catch (err) {
-            console.error('[IssueDetail] Status update failed:', err);
-            addToast('Status shift failed.', 'error');
-        }
-    };
-
-    const handleSaveAdminNote = async () => {
-        if (!id || savingNote) return;
-        setSavingNote(true);
-        try {
-            const { error } = await supabase
-                .from('issues')
-                .update({ admin_note: adminNote })
-                .eq('id', id);
-
-            if (error) throw error;
-            setIncident((prev) => ({ ...prev, admin_note: adminNote }));
-            addToast('Resolution protocol updated.', 'success');
-        } catch (err) {
-            console.error('[IssueDetail] Admin note update failed:', err);
-            addToast('Update failed.', 'error');
+            addToast(err.message, 'error');
         } finally {
-            setSavingNote(false);
+            setUpdating(false);
         }
     };
 
-    const isAdmin = userRole?.toLowerCase() === 'admin';
+    const statusActions = [
+        { value: 'noted', label: 'Mark as Noted', toast: 'Issue marked as Noted' },
+        { value: 'in_progress', label: 'Mark as In Progress', toast: 'Issue is being processed' },
+        { value: 'resolved', label: 'Mark as Resolved', toast: 'Issue resolved successfully' }
+    ];
+
 
     if (loading) return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '20px' }}>
-            <div style={{ height: '60px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px' }} />
-            <GlassyCard style={{ height: '400px', backgroundColor: 'rgba(255,255,255,0.01)' }}>
-                <div />
-            </GlassyCard>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center p-20 gap-6">
+            <div className="w-12 h-12 border-4 border-primary-cyan/10 border-t-primary-cyan rounded-full animate-spin" />
+            <div className="text-[10px] text-white/20 font-black uppercase tracking-[0.4em] animate-pulse">Loading Details</div>
         </div>
     );
 
     if (!incident) return (
-        <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>
-            Case not found or access restricted.
+        <div className="min-h-[60vh] flex flex-col items-center justify-center p-20 gap-8 px-4 text-center">
+            <div className="w-20 h-20 rounded-3xl bg-red-500/5 border border-red-500/10 flex items-center justify-center text-red-500/40">
+                <AlertCircle size={40} />
+            </div>
+            <div>
+                <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Issue Not Found</h2>
+                <p className="text-[14px] text-white/20 mt-3 font-medium max-w-[320px]">This report may have been removed or the link is invalid.</p>
+            </div>
+            <Button variant="secondary" size="md" onClick={() => navigate(-1)} className="px-8 uppercase font-black tracking-widest text-[10px]">Go Back</Button>
         </div>
     );
 
     return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '10px 20px 60px 20px', width: '100%' }}>
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '16px',
-                marginBottom: '32px'
-            }}>
-                <Button variant="secondary" size="sm" onClick={() => navigate(-1)} style={{ gap: '8px' }}>
-                    <ChevronLeft size={16} /> Dashboard
+        <div className="max-w-7xl mx-auto px-4 flex flex-col gap-10">
+            <div className="flex items-center justify-between">
+                <Button variant="secondary" size="md" onClick={() => navigate(-1)} iconOnly className="h-12 w-12 rounded-2xl">
+                    <ChevronLeft size={20} />
                 </Button>
-
-                {isAdmin && incident.status !== 'Resolved' && (
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {incident.status === 'Submitted' && <Button size="sm" onClick={() => updateStatus('Under Review')}>Acknowledge</Button>}
-                        {incident.status === 'Under Review' && <Button size="sm" onClick={() => updateStatus('In Progress')}>Assign</Button>}
-                        <Button size="sm" variant="primary" onClick={() => updateStatus('Resolved')}>Close Case</Button>
-                    </div>
-                )}
+                <div className="flex gap-4">
+                    {isAdmin && (
+                        <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-2xl bg-primary-cyan/5 border border-primary-cyan/10">
+                            <Shield size={14} className="text-primary-cyan" />
+                            <span className="text-[10px] font-black uppercase text-primary-cyan tracking-widest">Admin Portal View</span>
+                        </div>
+                    )}
+                    <Badge variant={incident.priority === 'High' ? 'error' : 'neutral'}>{incident.priority} Level</Badge>
+                </div>
             </div>
 
-            <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '24px',
-                alignItems: 'start'
-            }}>
-                <div style={{
-                    flex: '1',
-                    minWidth: 'min(100%, 700px)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '24px'
-                }}>
-                    <GlassyCard style={{ padding: '24px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', backgroundColor: 'rgba(230, 90, 31, 0.1)', color: '#FDA136' }}>
-                                    {incident.category}
-                                </span>
-                                {incident.department && (
-                                    <span style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'rgba(255,255,255,0.6)' }}>
-                                        {incident.department}
-                                    </span>
-                                )}
-                                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>ID: {incident.id.slice(0, 8).toUpperCase()}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: incident.status === 'Resolved' ? '#10b981' : '#FDA136', fontSize: '13px', fontWeight: 600 }}>
-                                {incident.status === 'Resolved' ? <CheckCircle size={14} /> : <Clock size={14} />}
-                                {incident.status}
-                            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
+                <div className="lg:col-span-2 flex flex-col gap-10">
+                    <GlassyCard className="p-10 md:p-14 relative overflow-hidden group border-white/5">
+                        <div className="absolute top-0 right-0 p-10 opacity-[0.02] group-hover:opacity-[0.04] transition-opacity duration-1000 pointer-events-none">
+                            <Shield size={220} />
                         </div>
-
-                        <h1 style={{ fontSize: 'min(32px, 8vw)', fontWeight: 800, color: 'white', marginBottom: '16px', fontFamily: 'Outfit' }}>
-                            {incident.title || 'Untitled Report'}
-                        </h1>
-                        <p style={{ color: 'rgba(237, 237, 243, 0.6)', lineHeight: 1.6, fontSize: '15px' }}>{incident.description}</p>
-
-                        <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
-                            <Button
-                                variant={incident.user_has_voted ? 'secondary' : 'outline'}
-                                size="sm"
-                                onClick={toggleVote}
-                                style={{
-                                    gap: '8px',
-                                    borderColor: incident.user_has_voted ? 'transparent' : 'rgba(253, 161, 54, 0.4)',
-                                    color: incident.user_has_voted ? '#FDA136' : 'white'
-                                }}
-                                disabled={voting}
-                            >
-                                <ThumbsUp size={14} fill={incident.user_has_voted ? '#FDA136' : 'none'} />
-                                {incident.votes_count} {incident.votes_count === 1 ? 'Upvote' : 'Upvotes'}
-                            </Button>
+                        
+                        <div className="flex flex-col gap-10 relative z-10">
+                            <div className="flex flex-wrap items-center gap-4">
+                                <Badge variant={incident.category === 'Emergency' ? 'error' : 'primary'} className="pl-2 pr-4 py-1.5 flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_10px_currentColor]" />
+                                    {incident.category}
+                                </Badge>
+                                <Badge variant={incident.status}>{incident.status.replace('_', ' ')}</Badge>
+                                <span className="text-[10px] font-black text-white/10 uppercase tracking-[0.2em] ml-auto hidden md:block">
+                                    REF-{incident.id.slice(0, 8).toUpperCase()}
+                                </span>
+                            </div>
+                            
+                            <h1 className="text-3xl md:text-6xl font-black text-white leading-[1] font-display uppercase tracking-tighter">{incident.title}</h1>
+                            
+                            <div className="h-1 bg-gradient-to-r from-primary-cyan/30 to-transparent w-40 rounded-full" />
+                            
+                            <p className="text-base md:text-xl text-white/40 leading-relaxed font-medium whitespace-pre-wrap">
+                                {incident.description}
+                            </p>
                         </div>
                     </GlassyCard>
 
-                    <GlassyCard style={{ display: 'flex', flexDirection: 'column', height: '500px', padding: 0, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.03)' }}>
-                        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                            <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <MessageSquare size={14} /> Case Timeline
-                            </h3>
-                        </div>
-
-                        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {replies.length === 0 && (
-                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.15)', fontSize: '13px' }}>
-                                    No entries in the timeline.
+                    {isAdmin && (
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                            <GlassyCard className="p-10 border-primary-cyan/10 shadow-[0_30px_60px_-15px_rgba(91,238,252,0.05)]">
+                                <div className="flex items-center gap-4 mb-10">
+                                    <div className="p-3 rounded-2xl bg-primary-cyan/5 border border-primary-cyan/10 text-primary-cyan">
+                                        <Activity size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-black text-white uppercase tracking-widest leading-none">Management Controls</h3>
+                                        <p className="text-[10px] text-white/20 mt-2 uppercase font-black tracking-widest">Update incident parameters</p>
+                                    </div>
                                 </div>
-                            )}
-                            {replies.map((reply) => {
-                                const isOwn = user?.id ? reply.user_id === user.id : false;
-                                const isReplyAdmin = reply.profiles?.role?.toLowerCase() === 'admin';
 
-                                return (
-                                    <div key={reply.id} style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start' }}>
-                                        <div style={{
-                                            maxWidth: '85%',
-                                            padding: '12px 16px',
-                                            borderRadius: '12px',
-                                            backgroundColor: isReplyAdmin ? 'rgba(230, 90, 31, 0.08)' : isOwn ? 'rgba(253, 161, 54, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                                            border: '1px solid rgba(255,255,255,0.05)'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                                {isReplyAdmin && <Shield size={10} color="#FDA136" />}
-                                                <span style={{ fontSize: '10px', fontWeight: 700, color: isReplyAdmin ? '#FDA136' : 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>
-                                                    {reply.profiles?.name || 'Anonymous User'} {isReplyAdmin && '(STAFF)'}
-                                                </span>
-                                            </div>
-                                            <p style={{ margin: 0, color: 'rgba(255,255,255,0.9)', fontSize: '14px', lineHeight: 1.5 }}>{reply.content}</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                                    <div className="flex flex-col gap-5">
+                                        <label className="text-[10px] font-black text-white/20 uppercase tracking-widest px-1">Case Status</label>
+                                        <div className="flex flex-wrap gap-2.5">
+                                            {statusActions.map(action => (
+                                                <button
+                                                    key={action.value}
+                                                    disabled={updating}
+                                                    onClick={() => handleUpdate('status', action.value, action.toast)}
+                                                    className={`px-5 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${
+                                                        incident.status === action.value
+                                                            ? 'bg-primary-cyan/20 text-primary-cyan shadow-[0_0_20px_rgba(91,238,252,0.1)] scale-105'
+                                                                : 'bg-white/[0.01] border border-white/5 text-white/20 hover:bg-white/[0.03] hover:text-white/40'
+                                                    } disabled:opacity-50 cursor-pointer`}
+                                                >
+                                                    {action.label}
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
 
-                        <form onSubmit={handleSendReply} style={{ padding: '16px', backgroundColor: 'rgba(0,0,0,0.1)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: '10px' }}>
-                            <Input
-                                placeholder="Update the case timeline..."
-                                value={replyContent}
-                                onChange={(e) => setReplyContent(e.target.value)}
-                                style={{ height: '42px', fontSize: '14px' }}
-                            />
-                            <Button style={{ width: '42px', minWidth: '42px', padding: 0 }} disabled={!replyContent.trim() || sending} type="submit">
-                                <Send size={18} />
-                            </Button>
-                        </form>
-                    </GlassyCard>
+                                    <div className="flex flex-col gap-5">
+                                        <label className="text-[10px] font-black text-white/20 uppercase tracking-widest px-1">Set Priority</label>
+                                        <div className="flex gap-2.5">
+                                            {['Low', 'Medium', 'High'].map(p => (
+                                                <button
+                                                    key={p}
+                                                    disabled={updating}
+                                                    onClick={() => handleUpdate('priority', p)}
+                                                    className={`flex-1 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 border ${
+                                                        incident.priority === p
+                                                            ? 'bg-white/5 border-white/20 text-white shadow-lg'
+                                                            : 'bg-white/[0.01] border-white/5 text-white/10 hover:bg-white/[0.03] hover:text-white/30'
+                                                    } disabled:opacity-50 cursor-pointer`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </GlassyCard>
+                        </motion.div>
+                    )}
                 </div>
 
-                <div style={{
-                    width: '100%',
-                    maxWidth: '340px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '20px'
-                }}>
-                    <GlassyCard style={{ padding: '20px' }}>
-                        <h4 style={{ margin: '0 0 16px 0', fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Registry Artifacts</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            <InfoItem
-                                icon={<User size={14} />}
-                                label="Filing Party"
-                                value={incident.is_anonymous ? 'Anonymous Reporter' : (incident.profiles?.name || 'Unknown')}
-                            />
-                            {incident.reporter_role && (
-                                <InfoItem
-                                    icon={<Shield size={14} />}
-                                    label="Reporter Type"
-                                    value={incident.reporter_role.replace('_', ' ')}
-                                />
-                            )}
-                            <InfoItem icon={<Clock size={14} />} label="Filed At" value={new Date(incident.created_at).toLocaleString()} />
-                            <InfoItem icon={<Shield size={14} />} label="Security Level" value={incident.priority} color={incident.priority === 'Critical' ? '#ff6b6b' : '#FDA136'} />
-                        </div>
-
-                        {incidentFiles.length > 0 && (
-                            <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                <h4 style={{ margin: 0, fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Evidence Preview</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '10px' }}>
-                                    {incidentFiles.map((file) => {
-                                        const publicUrl = supabase.storage.from('issue-images').getPublicUrl(file.image_path).data.publicUrl;
-
-                                        return (
-                                            <a
-                                                key={file.id}
-                                                href={publicUrl}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                style={{
-                                                    aspectRatio: '1',
-                                                    borderRadius: '8px',
-                                                    overflow: 'hidden',
-                                                    border: '1px solid rgba(255,255,255,0.1)',
-                                                    backgroundColor: 'rgba(255,255,255,0.02)',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center'
-                                                }}
-                                            >
-                                                <img src={publicUrl} alt="evidence" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                            </a>
-                                        );
-                                    })}
+                <div className="flex flex-col gap-10">
+                    <GlassyCard className="p-10 border-white/5 bg-white/[0.01]">
+                        <h3 className="text-[10px] font-black text-white/10 uppercase tracking-[0.3em] mb-12 border-b border-white/5 pb-6">Case Briefing</h3>
+                        
+                        <div className="flex flex-col gap-10">
+                            <div className="flex gap-6 items-start">
+                                <div className="p-3.5 rounded-2xl bg-white/[0.01] border border-white/5 text-white/10 group-hover:text-primary-cyan duration-500">
+                                    <Clock size={20} />
+                                </div>
+                                <div>
+                                    <div className="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] mb-2">Time Recorded</div>
+                                    <div className="text-white font-bold text-[13px] tracking-tight">{new Date(incident.created_at).toLocaleString()}</div>
                                 </div>
                             </div>
-                        )}
+
+                            <div className="flex gap-6 items-start">
+                                <div className="p-3.5 rounded-2xl bg-white/[0.01] border border-white/5 text-white/10">
+                                    <MapPin size={20} />
+                                </div>
+                                <div>
+                                    <div className="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] mb-2">Locality</div>
+                                    <div className="text-white font-bold text-[13px] tracking-tight">General Campus Area</div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-6 items-start">
+                                <div className="p-3.5 rounded-2xl bg-white/[0.01] border border-white/5 text-white/10">
+                                    <FileText size={20} />
+                                </div>
+                                <div>
+                                    <div className="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] mb-2">Registry ID</div>
+                                    <div className="text-white font-black text-[10px] opacity-40 truncate max-w-[140px] uppercase tracking-widest">{incident.id.slice(0, 16).toUpperCase()}...</div>
+                                </div>
+                            </div>
+                        </div>
                     </GlassyCard>
 
-                    {isAdmin && (
-                        <GlassyCard style={{ padding: '20px', backgroundColor: 'rgba(255,255,255,0.01)' }}>
-                            <h4 style={{ margin: '0 0 16px 0', fontSize: '11px', fontWeight: 800, color: '#FDA136', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Activity size={14} /> Audit Trail
-                            </h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                {auditLogs.length === 0 && <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)' }}>No status shifts recorded.</p>}
-                                {auditLogs.map((log) => (
-                                    <div key={log.id} style={{ borderLeft: '1px dashed rgba(255,255,255,0.1)', paddingLeft: '12px', position: 'relative' }}>
-                                        <div style={{ position: 'absolute', left: '-4.5px', top: '4px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'rgba(253, 161, 54, 0.4)' }} />
-                                        <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: 'white' }}>
-                                            {log.status_from} → {log.status_to}
-                                        </p>
-                                        <p style={{ margin: 0, fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>
-                                            By {log.profiles?.name} • {new Date(log.created_at).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </GlassyCard>
-                    )}
-
-                    {isAdmin && !incident.is_anonymous && (
-                        <GlassyCard style={{ padding: '20px', backgroundColor: 'rgba(255,255,255,0.01)' }}>
-                            <h4 style={{ margin: '0 0 12px 0', fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>Contact Protocol</h4>
-                            <p style={{ margin: 0, fontSize: '13px', color: 'rgba(255,255,255,0.6)', wordBreak: 'break-all' }}>{incident.profiles?.email}</p>
-                        </GlassyCard>
-                    )}
-
-                    {isAdmin && (
-                        <GlassyCard style={{ padding: '20px', border: '1px solid rgba(253, 161, 54, 0.2)', backgroundColor: 'rgba(253, 161, 54, 0.02)' }}>
-                            <h4 style={{ margin: '0 0 12px 0', fontSize: '11px', fontWeight: 800, color: '#FDA136', textTransform: 'uppercase' }}>Admin Resolution Note</h4>
-                            <textarea
-                                value={adminNote}
-                                onChange={(e) => setAdminNote(e.target.value)}
-                                placeholder="Add notes for resolution or internal tracking..."
-                                style={{
-                                    width: '100%',
-                                    height: '100px',
-                                    backgroundColor: 'rgba(255,255,255,0.03)',
-                                    border: '1px solid rgba(255,255,255,0.05)',
-                                    borderRadius: '8px',
-                                    color: 'white',
-                                    padding: '10px',
-                                    fontSize: '13px',
-                                    fontFamily: 'inherit',
-                                    resize: 'none',
-                                    marginBottom: '10px'
-                                }}
-                            />
-                            <Button size="sm" style={{ width: '100%' }} onClick={handleSaveAdminNote} disabled={savingNote}>
-                                {savingNote ? 'Saving...' : 'Save Admin Note'}
-                            </Button>
-                        </GlassyCard>
-                    )}
-
-                    {!isAdmin && incident.admin_note && (
-                        <GlassyCard style={{ padding: '20px', borderLeft: '3px solid #10b981', backgroundColor: 'rgba(16, 185, 129, 0.05)' }}>
-                            <h4 style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: 800, color: '#10b981', textTransform: 'uppercase' }}>Admin Resolution Note</h4>
-                            <p style={{ margin: 0, fontSize: '13px', color: 'white', lineHeight: 1.5 }}>{incident.admin_note}</p>
-                        </GlassyCard>
-                    )}
+                    <div className="p-10 rounded-[32px] bg-white/[0.01] border border-white/5 flex flex-col gap-8 text-center">
+                        <div className="w-16 h-16 rounded-[20px] bg-white/[0.02] border border-white/5 flex items-center justify-center mx-auto text-white/5">
+                            <Shield size={32} />
+                        </div>
+                        <p className="text-[11px] text-white/20 font-medium leading-relaxed tracking-wide px-2">
+                            This report is processed through secure channels. All updates are logged for verification.
+                        </p>
+                        <Button variant="secondary" size="md" className="w-full justify-center text-[10px] font-black uppercase tracking-widest py-4 rounded-2xl" onClick={() => window.print()}>
+                            Generate PDF Copy
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
-const InfoItem = ({ icon, label, value, color = 'rgba(255,255,255,0.8)' }) => (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', color: 'rgba(255,255,255,0.2)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>
-            {icon} {label}
-        </div>
-        <div style={{ fontSize: '14px', color, fontWeight: 500 }}>{value}</div>
-    </div>
-);
+export default IssueDetail;

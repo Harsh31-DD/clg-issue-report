@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Shield } from 'lucide-react';
+import { Outlet } from 'react-router-dom';
 
-export const AuthLayout = ({ children }) => {
+export const AuthLayout = () => {
     return (
         <div style={{
             minHeight: '100vh',
@@ -10,33 +11,31 @@ export const AuthLayout = ({ children }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#0B0B0B',
-            backgroundImage: 'radial-gradient(at 0% 0%, rgba(122, 15, 26, 0.1) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(230, 90, 31, 0.05) 0px, transparent 50%)',
-            padding: '24px',
+            padding: 'var(--sp-6)',
             position: 'relative',
             overflow: 'hidden'
         }}>
             {/* Background Decorative Elements */}
             <div style={{
                 position: 'absolute',
-                top: '10%',
-                left: '5%',
-                width: '400px',
-                height: '400px',
-                background: 'rgba(230, 90, 31, 0.03)',
-                filter: 'blur(100px)',
+                top: '5%',
+                left: '-10%',
+                width: '600px',
+                height: '600px',
+                background: 'rgba(91, 238, 252, 0.03)',
+                filter: 'blur(120px)',
                 borderRadius: '50%',
                 zIndex: 0
             }} />
 
             <div style={{
                 position: 'absolute',
-                bottom: '10%',
-                right: '5%',
-                width: '300px',
-                height: '300px',
-                background: 'rgba(122, 15, 26, 0.05)',
-                filter: 'blur(80px)',
+                bottom: '5%',
+                right: '-10%',
+                width: '500px',
+                height: '500px',
+                background: 'rgba(22, 246, 134, 0.02)',
+                filter: 'blur(100px)',
                 borderRadius: '50%',
                 zIndex: 0
             }} />
@@ -55,7 +54,7 @@ export const AuthLayout = ({ children }) => {
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        gap: '32px'
+                        gap: '40px'
                     }}
                 >
                     {/* Brand/Logo */}
@@ -63,42 +62,43 @@ export const AuthLayout = ({ children }) => {
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        gap: '12px'
+                        gap: '16px'
                     }}>
                         <div style={{
-                            width: '56px',
-                            height: '56px',
-                            background: 'linear-gradient(135deg, #E65A1F, #FDA136)',
-                            borderRadius: '16px',
+                            width: '64px',
+                            height: '64px',
+                            background: 'linear-gradient(135deg, #5BEEFC, #16F686)',
+                            borderRadius: '20px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            boxShadow: '0 0 20px rgba(230, 90, 31, 0.3)'
+                            boxShadow: '0 0 30px rgba(91, 238, 252, 0.2)'
                         }}>
-                            <Shield size={28} color="white" />
+                            <Shield size={32} color="white" />
                         </div>
                         <div style={{ textAlign: 'center' }}>
                             <h2 style={{
                                 color: 'white',
-                                fontSize: '24px',
-                                fontWeight: '800',
+                                fontSize: '28px',
+                                fontWeight: '900',
                                 margin: 0,
-                                fontFamily: 'Outfit'
+                                fontFamily: 'Outfit',
+                                letterSpacing: '-0.02em'
                             }}>CIRTS</h2>
                             <p style={{
-                                color: 'rgba(255,255,255,0.4)',
-                                fontSize: '11px',
-                                fontWeight: '800',
+                                color: 'rgba(255,255,255,0.2)',
+                                fontSize: '10px',
+                                fontWeight: '900',
                                 textTransform: 'uppercase',
-                                letterSpacing: '0.2em',
-                                margin: '4px 0 0 0'
-                            }}>College Incident Registry</p>
+                                letterSpacing: '0.4em',
+                                margin: '8px 0 0 0'
+                            }}>Issue Reporting System</p>
                         </div>
                     </div>
 
                     {/* Content Container */}
                     <div style={{ width: '100%' }}>
-                        {children}
+                        <Outlet />
                     </div>
                 </motion.div>
             </div>

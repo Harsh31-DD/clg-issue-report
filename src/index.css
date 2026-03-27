@@ -1,256 +1,82 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap');
+@import "tailwindcss";
 
-:root {
-  --color-violet-dark: #120B2A;
-  --color-purple-deep: #1A0F3C;
-  --color-crimson: #7A0F1A;
-  --color-burnt-orange: #E65A1F;
-  --color-orange-glow: #FDA136;
-  --color-off-white: #EDEDF3;
-  --glass-border: rgba(255, 255, 255, 0.18);
-  --glass-bg: rgba(255, 255, 255, 0.08);
-  --accent-gradient: linear-gradient(135deg, #E65A1F, #FDA136);
-  --bg-gradient: radial-gradient(circle at top left, #7A0F1A, #120B2A 55%, #0B0B0B 100%);
+@theme {
+  --color-primary-cyan: #5BEEFC;
+  --color-accent-green: #16F686;
+  --color-highlight-yellow: #EEE638;
+  --color-bg-dark: #151A1F;
+  --color-text-white: #FFFFFF;
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+
+  --background-image-premium: radial-gradient(circle at top left, #1c252d 0%, #151a1f 70%, #0d1114 100%);
+  --background-image-accent-gradient: linear-gradient(135deg, var(--color-primary-cyan), var(--color-accent-green));
+
+  --shadow-premium-sm: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-premium-md: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --shadow-premium-lg: 0 24px 64px rgba(0, 0, 0, 0.8);
+
+  --font-sans: 'Inter', -apple-system, sans-serif;
+  --font-display: 'Inter', sans-serif;
+
+  --animate-shine: shine 3s linear infinite;
+
+  @keyframes shine {
+    from { background-position: 200% center; }
+    to { background-position: -200% center; }
+  }
 }
 
-body {
-  margin: 0;
-  padding: 0;
-  background: #0B0B0B;
-  color: var(--color-off-white);
-  font-family: 'Inter', -apple-system, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+@layer base {
+  * {
+    @apply box-border m-0 p-0;
+  }
+
+  body {
+    @apply bg-bg-dark text-text-white font-sans antialiased overflow-x-hidden min-h-screen leading-relaxed;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-bold tracking-tight leading-tight;
+  }
+
+  h1 { @apply text-3xl md:text-5xl font-black tracking-tighter uppercase; }
+  h2 { @apply text-xl md:text-2xl font-bold tracking-tight; }
+  h3 { @apply text-lg md:text-xl font-bold; }
+  
+  p { @apply text-[14px] opacity-60 leading-relaxed; }
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: 'Outfit', sans-serif;
-  letter-spacing: -0.02em;
-}
+@layer components {
+  .premium-bg {
+    @apply fixed inset-0 bg-premium z-[-1] pointer-events-none;
+  }
 
-#root {
-  width: 100%;
-  min-height: 100vh;
-}
+  .glass-panel {
+    @apply bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-2xl shadow-premium-md;
+  }
 
-* {
-  box-sizing: border-box;
+  .glass-card {
+    @apply bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-3xl p-6 transition-all duration-300 shadow-premium-sm hover:bg-white/[0.04] hover:border-white/[0.12] hover:shadow-premium-md;
+  }
+
+  .shine-text {
+    @apply bg-gradient-to-r from-primary-cyan via-accent-green to-primary-cyan bg-[length:200%_auto] bg-clip-text text-transparent animate-shine;
+  }
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  @apply w-1.5;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B0B0B;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-burnt-orange);
-  border-radius: 4px;
-  opacity: 0.5;
+  @apply bg-white/5 rounded-full hover:bg-primary-cyan/40 transition-colors;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-orange-glow);
-}
-
-/* Base Styles */
-input,
-button,
-textarea {
-  font-family: inherit;
-}
-
-.premium-bg {
-  background: var(--bg-gradient);
-  background-attachment: fixed;
-}
-
-/* Animations */
-@keyframes float {
-  0% {
-    transform: translateY(0px);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
-
-  100% {
-    transform: translateY(0px);
-  }
-}
-
-@keyframes pulse-glow {
-  0% {
-    opacity: 0.5;
-  }
-
-  50% {
-    opacity: 0.8;
-  }
-
-  100% {
-    opacity: 0.5;
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes ripple {
-  0% {
-    transform: scale(0);
-    opacity: 1;
-  }
-
-  100% {
-    transform: scale(4);
-    opacity: 0;
-  }
-}
-
-@keyframes bounce {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-5px);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-/* Utility Classes for Animations */
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-.animate-fade-in {
-  animation: fade-in 0.5s ease-out;
-}
-
-.animate-slide-up {
-  animation: slide-up 0.6s ease-out;
-}
-
-.animate-bounce {
-  animation: bounce 1s ease-in-out infinite;
-}
-
-/* Toast System */
-.toast-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  z-index: 10000;
-  pointer-events: none;
-}
-
-.toast {
-  pointer-events: auto;
-  min-width: 300px;
-  max-width: 400px;
-  background: rgba(15, 23, 42, 0.9);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: white;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-  overflow: hidden;
-  position: relative;
-}
-
-.toast::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-  background: var(--color-orange-glow);
-  width: 100%;
-  animation: toast-progress 3s linear forwards;
-}
-
-.toast.error::after {
-  background: #f87171;
-}
-
-.toast.success::after {
-  background: #10b981;
-}
-
-@keyframes toast-progress {
-  from {
-    width: 100%;
-  }
-
-  to {
-    width: 0%;
-  }
-}
-
-@keyframes toast-in {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.toast-enter {
-  animation: toast-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+::-webkit-scrollbar-corner {
+  @apply bg-transparent;
 }

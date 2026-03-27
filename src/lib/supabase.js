@@ -4,7 +4,23 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Supabase environment variables are missing! Make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env');
+    console.error('[Supabase] Missing environment variables. Check .env file.');
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '')
+// Client options for better reliability
+const options = {
+    auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+    },
+    global: {
+        headers: { 'x-application-name': 'cirts-web' }
+    }
+};
+
+export const supabase = createClient(
+    supabaseUrl || 'https://placeholder-url.supabase.co',
+    supabaseAnonKey || 'placeholder-key',
+    options
+);

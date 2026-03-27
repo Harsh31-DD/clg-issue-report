@@ -1,122 +1,83 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
-const AuthContext = createContext({
-    session: null,
-    userRole: null,
-    loading: true,
-    isAdmin: false,
-    user: undefined,
-});
-
-export const useAuth = () => useContext(AuthContext);
+const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
-    const [session, setSession] = useState(null);
+    const [user, setUser] = useState(null);
     const [userRole, setUserRole] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchUserRole = async (userId) => {
-        try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', userId)
-                .single();
-
-            if (error) {
-                console.warn('[AuthContext] Role fetch error:', error.message);
-                return 'student';
-            }
-            return data?.role?.toLowerCase() || 'student';
-        } catch (err) {
-            console.error('[AuthContext] Role fetch exception:', err);
-            return 'student';
-        }
-    };
-
-    const signOut = async () => {
-        try {
-            setLoading(true);
-            await supabase.auth.signOut();
-            localStorage.clear();
-            sessionStorage.clear();
-            setSession(null);
-            setUserRole(null);
-        } catch (err) {
-            console.error('[AuthContext] SignOut error:', err);
-        } finally {
-            setLoading(false);
-            window.location.href = '/home';
-        }
-    };
-
     useEffect(() => {
-        let mounted = true;
-
-        const initialize = async () => {
+        // Initial session check
+        const initSession = async () => {
             try {
-                const { data: { session: initialSession } } = await supabase.auth.getSession();
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', session.user.id)
+                        .single();
 
-                if (!mounted) return;
-
-                if (initialSession) {
-                    setSession(initialSession); // Set session immediately
-                    setLoading(false); // Clear loading immediately to prevent black screen
-                    const role = await fetchUserRole(initialSession.user.id);
-                    if (mounted) {
-                        setUserRole(role);
-                    }
+                    setUser(session.user);
+                    setUserRole(profile?.role || 'student');
                 }
             } catch (err) {
-                console.error('[AuthContext] Initialization error:', err);
+                console.error("Auth init error:", err);
             } finally {
-                if (mounted) setLoading(false);
+                setLoading(false);
             }
         };
 
-        initialize();
+        initSession();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-            console.log('[AuthContext] Auth Event:', event);
+        // Listen for changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            try {
+                if (session?.user) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', session.user.id)
+                        .single();
 
-            if (!mounted) return;
-
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-                setSession(currentSession);
-                setLoading(false); // Clear loading immediately on session
-                if (currentSession?.user) {
-                    const role = await fetchUserRole(currentSession.user.id);
-                    if (mounted) setUserRole(role);
+                    setUser(session.user);
+                    setUserRole(profile?.role || 'student');
+                } else {
+                    setUser(null);
+                    setUserRole(null);
                 }
-            } else if (event === 'SIGNED_OUT') {
-                setSession(null);
+            } catch (err) {
+                console.error("Auth change error:", err);
+                setUser(null);
                 setUserRole(null);
-                setLoading(false);
-            } else {
-                setSession(currentSession);
+            } finally {
                 setLoading(false);
             }
         });
 
-        return () => {
-            mounted = false;
-            subscription.unsubscribe();
-        };
+        return () => subscription.unsubscribe();
     }, []);
 
-    const value = {
-        session,
-        userRole,
-        loading,
-        isAdmin: userRole === 'admin',
-        user: session?.user,
-        signOut
+    const signOut = async () => {
+        await supabase.auth.signOut();
+        setUser(null);
+        setUserRole(null);
     };
 
     return (
-        <AuthContext.Provider value={value}>
+        <AuthContext.Provider value={{
+            user,
+            userRole,
+            loading,
+            signOut,
+            isAuthenticated: !!user,
+            session: { user }
+        }}>
             {children}
         </AuthContext.Provider>
     );
 };
+
+export const useAuth = () => useContext(AuthContext);

@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, AlertCircle, Info } from 'lucide-react';
-import { GlassyCard } from './UI';
+import { motion } from 'framer-motion';
+import { AlertCircle, Info, CheckCheck, BellOff } from 'lucide-react';
+import { GlassyCard, Button } from './UI';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
 export const NotificationPanel = ({ onClose }) => {
     const [notifications, setNotifications] = useState([]);
-    const [unreadCount, setUnreadCount] = useState(0);
     const navigate = useNavigate();
 
     const fetchNotifications = async (mounted, abortSignal) => {
@@ -20,23 +19,16 @@ export const NotificationPanel = ({ onClose }) => {
                 .select('*')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
-                .limit(20)
+                .limit(10)
                 .abortSignal(abortSignal);
 
-            if (error) {
-                if (error.name === 'AbortError') return;
-                console.error('Error fetching notifications:', error);
-                return;
-            }
+            if (error) return;
 
             if (mounted) {
                 setNotifications(data || []);
-                setUnreadCount((data || []).filter((n) => !n.is_read).length);
             }
-        } catch (err) {
-            if (mounted && err.name !== 'AbortError') {
-                console.error('Unexpected error in fetchNotifications:', err);
-            }
+        } catch {
+            // Silently handle fetch errors
         }
     };
 
@@ -78,20 +70,16 @@ export const NotificationPanel = ({ onClose }) => {
                 .update({ is_read: true })
                 .eq('id', id);
 
-            if (error) {
-                console.error('Error marking notification as read:', error);
-                return;
-            }
+            if (error) return;
 
             setNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
-            setUnreadCount(prev => Math.max(0, prev - 1));
 
             if (link) {
                 navigate(link);
+                if (onClose) onClose();
             }
-            if (onClose) onClose();
-        } catch (err) {
-            console.error('Unexpected error in markAsRead:', err);
+        } catch {
+            // Silently handle mark as read errors
         }
     };
 
@@ -106,96 +94,87 @@ export const NotificationPanel = ({ onClose }) => {
                 .eq('user_id', user.id)
                 .eq('is_read', false);
 
-            if (error) {
-                console.error('Error marking all as read:', error);
-                return;
-            }
+            if (error) return;
 
             setNotifications(notifications.map(n => ({ ...n, is_read: true })));
-            setUnreadCount(0);
-        } catch (err) {
-            console.error('Unexpected error in markAllRead:', err);
+        } catch {
+            // mass update error
         }
     };
 
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            style={{
-                width: '380px',
-                zIndex: 1000
-            }}
+            exit={{ opacity: 0, scale: 0.98, y: 10 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="w-[360px] z-[1000]"
         >
-            <GlassyCard style={{
-                padding: '0',
-                overflow: 'hidden',
-                border: '1px solid rgba(253, 161, 54, 0.2)',
-                boxShadow: '0 20px 50px rgba(0,0,0,0.6)'
-            }}>
-                <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)' }}>
-                    <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        Communications Center
+            <GlassyCard hoverable={false} className="p-0 overflow-hidden shadow-[0_24px_64px_rgba(0,0,0,0.8)] border-white/5">
+                <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                    <h3 className="m-0 text-[15px] font-black text-white uppercase tracking-tight">
+                        Alert Communications
                     </h3>
-                    <button onClick={markAllRead} style={{ color: '#FDA136', background: 'none', border: 'none', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
-                        Clear All
-                    </button>
+                    {notifications.some(n => !n.is_read) && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={markAllRead}
+                            className="text-burnt-orange text-[11px] px-2 py-1 font-black"
+                        >
+                            <CheckCheck size={14} className="mr-1" /> Clear
+                        </Button>
+                    )}
                 </div>
 
-                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                <div className="max-h-[420px] overflow-y-auto py-2">
                     {notifications.length === 0 ? (
-                        <div style={{ padding: '40px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.2)' }}>
-                            No active transmissions found.
+                        <div className="px-6 py-16 text-center">
+                            <div className="w-12 h-12 rounded-full bg-white/[0.03] grid place-items-center mx-auto mb-4 border border-white/5">
+                                <BellOff size={20} className="text-white/20" />
+                            </div>
+                            <p className="text-[13px] text-white/30 font-bold uppercase tracking-wider">
+                                No active transmissions detected.
+                            </p>
                         </div>
                     ) : (
                         notifications.map((n) => (
                             <div
                                 key={n.id}
                                 onClick={() => markAsRead(n.id, n.link)}
-                                style={{
-                                    padding: '16px 20px',
-                                    borderBottom: '1px solid rgba(255,255,255,0.03)',
-                                    cursor: 'pointer',
-                                    backgroundColor: n.is_read ? 'transparent' : 'rgba(253, 161, 54, 0.05)',
-                                    transition: 'all 0.2s',
-                                    display: 'flex',
-                                    gap: '16px'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = n.is_read ? 'transparent' : 'rgba(253, 161, 54, 0.05)'}
+                                className="px-6 py-4 cursor-pointer bg-transparent transition-all duration-200 flex gap-4 relative group hover:bg-white/[0.03]"
                             >
-                                <div style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    borderRadius: '10px',
-                                    backgroundColor: n.type === 'status_change' ? 'rgba(96, 165, 250, 0.1)' : 'rgba(253, 161, 54, 0.1)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    flexShrink: 0
-                                }}>
-                                    {n.type === 'status_change' ? <Info size={18} color="#60a5fa" /> : <AlertCircle size={18} color="#FDA136" />}
+                                {!n.is_read && (
+                                    <div className="absolute left-2 top-1/2 -translate-y-1/2 w-1 h-6 bg-burnt-orange rounded-full shadow-[0_0_8px_rgba(230,90,31,0.5)]" />
+                                )}
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                                    n.type === 'status_change' 
+                                        ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' 
+                                        : 'bg-burnt-orange/10 border-burnt-orange/20 text-burnt-orange'
+                                }`}>
+                                    {n.type === 'status_change' ? <Info size={16} /> : <AlertCircle size={16} />}
                                 </div>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'white', marginBottom: '4px' }}>{n.title}</div>
-                                    <div style={{ fontSize: '13px', color: 'rgba(237, 237, 243, 0.4)', lineHeight: 1.4 }}>{n.message}</div>
-                                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', marginTop: '8px' }}>
-                                        {n.created_at ? new Date(n.created_at).toLocaleString() : 'Just now'}
+                                <div className="flex-1">
+                                    <div className="text-[14px] font-black text-white mb-0.5 tracking-tight group-hover:text-burnt-orange transition-colors uppercase">{n.title}</div>
+                                    <div className="text-[13px] text-white/40 font-medium leading-relaxed">{n.message}</div>
+                                    <div className="text-[10px] text-white/20 mt-2 font-black uppercase tracking-[0.1em]">
+                                        {n.created_at ? new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
                                     </div>
                                 </div>
-                                {!n.is_read && <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FDA136', alignSelf: 'center' }} />}
                             </div>
                         ))
                     )}
                 </div>
 
-                <button
-                    onClick={() => onClose && onClose()}
-                    style={{ width: '100%', padding: '12px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: '12px', fontWeight: 600, borderTop: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }}
-                >
-                    Close Panel
-                </button>
+                <div className="p-4 border-t border-white/5 bg-white/[0.02]">
+                    <Button
+                        variant="secondary"
+                        onClick={() => onClose && onClose()}
+                        className="w-full text-[11px] font-black uppercase tracking-widest"
+                    >
+                        Dismiss Panel
+                    </Button>
+                </div>
             </GlassyCard>
         </motion.div>
     );

@@ -1,209 +1,241 @@
-import { useEffect } from 'react';
-import { Clock, CheckCircle2, AlertCircle, Plus, ChevronRight, LayoutGrid, ThumbsUp, MapPin } from 'lucide-react';
-import { GlassyCard, Button, useToast } from '../components/UI';
+import React, { useEffect, useState } from 'react';
+import { GlassyCard, Badge, Button, useToast } from '../components/UI';
+import { Shield, Clock, AlertTriangle, ChevronRight, Plus, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useIncidents } from '../hooks/useIncidents';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
-export const Dashboard = () => {
-    const navigate = useNavigate();
-    const { user } = useAuth();
-    const { incidents, loading, error, refetch, toggleVote } = useIncidents(user?.id);
+const Dashboard = () => {
+    const [incidents, setIncidents] = useState([]);
+    const [notifications, setNotifications] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [offline, setOffline] = useState(!navigator.onLine);
     const { addToast } = useToast();
 
-    useEffect(() => {
-        if (!user?.id) return;
-
-        let mounted = true;
-        const channel = supabase.channel('student_dashboard')
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'issues',
-                filter: `reported_by=eq.${user.id}`
-            }, () => {
-                if (mounted) refetch();
-            })
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'incident_votes'
-            }, () => {
-                if (mounted) refetch();
-            })
-            .subscribe();
-
-        return () => {
-            mounted = false;
-            supabase.removeChannel(channel);
-        };
-    }, [user?.id, refetch]);
-
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'Pending':
-            case 'Submitted': return '#E65A1F';
-            case 'In Progress': return '#facc15';
-            case 'Resolved': return '#10b981';
-            default: return '#60a5fa';
+    const getStatusText = (status) => {
+        switch(status) {
+            case 'pending': return 'Waiting for admin review';
+            case 'noted': return 'Admin has seen your issue';
+            case 'in_progress': return 'Issue is being worked on';
+            case 'resolved': return 'Issue has been resolved';
+            default: return 'Waiting for admin review';
         }
     };
 
-    const handleVote = async (e, id) => {
-        e.stopPropagation();
-        await toggleVote(id);
+    const fetchIncidents = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data, error } = await supabase
+                    .from('incidents')
+                    .select('*')
+                    .eq('reporter_id', user.id)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                setIncidents(data || []);
+
+                // Fetch notifications for Activity Feed
+                const { data: notifData } = await supabase
+                    .from('notifications')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .eq('type', 'status_update')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                setNotifications(notifData || []);
+            }
+        } catch (err) {
+            console.error("Dashboard fetch error:", err);
+            addToast(err.message, 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    if (loading) {
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div style={{ height: '80px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '16px' }} />
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
-                    {[1, 2, 3, 4].map(i => <div key={i} style={{ height: '110px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '16px' }} />)}
-                </div>
-            </div>
-        );
-    }
+    useEffect(() => {
+        const handleOffline = () => setOffline(true);
+        const handleOnline = () => setOffline(false);
+        window.addEventListener('offline', handleOffline);
+        window.addEventListener('online', handleOnline);
+
+        fetchIncidents();
+
+        // Real-time subscriptions wrapper
+        let channel = supabase.channel('dashboard-updates');
+
+        channel
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'incidents' },
+                (payload) => setIncidents(prev => [payload.new, ...prev].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)))
+            )
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'incidents' },
+                (payload) => setIncidents(prev => prev.map(i => i.id === payload.new.id ? payload.new : i))
+            )
+            .on(
+                'postgres_changes',
+                { event: 'DELETE', schema: 'public', table: 'incidents' },
+                (payload) => setIncidents(prev => prev.filter(i => i.id !== payload.old.id))
+            )
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'notifications' },
+                (payload) => setNotifications(prev => [payload.new, ...prev].slice(0, 5))
+            )
+            .subscribe();
+
+        return () => {
+            window.removeEventListener('offline', handleOffline);
+            window.removeEventListener('online', handleOnline);
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
+    const stats = [
+        { label: 'Total Reports', value: incidents.length, icon: Shield, color: 'text-primary-cyan' },
+        { label: 'Pending Review', value: incidents.filter(i => i.status === 'pending').length, icon: Clock, color: 'text-highlight-yellow' },
+        { label: 'Resolved', value: incidents.filter(i => i.status === 'resolved').length, icon: Activity, color: 'text-accent-green' },
+    ];
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', width: '100%' }}>
-            <header style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-end',
-                flexWrap: 'wrap',
-                gap: '20px'
-            }}>
-                <div style={{ minWidth: '240px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#E65A1F', textTransform: 'uppercase', fontSize: '11px', fontWeight: 800, letterSpacing: '0.1em', marginBottom: '8px' }}>
-                        <LayoutGrid size={14} />
-                        Registry Console
-                    </div>
-                    <h1 style={{ fontSize: 'min(36px, 8vw)', fontWeight: '800', color: 'white', margin: 0, fontFamily: 'Outfit' }}>
-                        My Incidents
-                    </h1>
+        <div className="flex flex-col gap-10">
+            {offline && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl flex items-center justify-center gap-3 font-semibold text-sm animate-pulse">
+                    <AlertTriangle size={18} /> You are offline. Connection Lost.
                 </div>
-                <Link to="/report" style={{ textDecoration: 'none' }}>
-                    <Button glow style={{ padding: '10px 24px' }}>
-                        <Plus size={18} /> New Report
+            )}
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6">
+                <div>
+                    <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter">Your Reported Issues</h1>
+                    <p className="text-white/30 mt-2 font-medium">Track status of your complaints instantly.</p>
+                </div>
+                <Link to="/report" className="no-underline">
+                    <Button size="lg" className="h-14 px-8 uppercase font-black tracking-widest text-[11px] group">
+                        <Plus size={18} className="group-hover:rotate-90 transition-transform" /> 
+                        Report New Issue
                     </Button>
                 </Link>
-            </header>
-
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-                gap: '20px'
-            }}>
-                <StatCard label="Total Filed" value={incidents.length} icon={<Clock size={18} />} accent="#E65A1F" glow />
-                <StatCard label="Successful" value={incidents.filter(i => i.status === 'Resolved').length} icon={<CheckCircle2 size={18} />} accent="#10b981" glow />
-                <StatCard label="In Review" value={incidents.filter(i => i.status === 'Submitted' || i.status === 'Pending').length} icon={<AlertCircle size={18} />} accent="#facc15" glow />
-                <StatCard label="Active" value={incidents.filter(i => i.status === 'In Progress').length} icon={<AlertCircle size={18} />} accent="#60a5fa" glow />
             </div>
 
-            {error && (
-                <GlassyCard style={{ textAlign: 'center', border: '1px solid rgba(230, 90, 31, 0.2)' }}>
-                    <p style={{ color: '#E65A1F', margin: '0 0 12px 0', fontSize: '14px' }}>Registry sync interrupted.</p>
-                    <Button variant="secondary" size="sm" onClick={() => { refetch(); addToast('Re-syncing with registry...', 'info'); }}>Retry Sync</Button>
-                </GlassyCard>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {!error && incidents.length === 0 ? (
-                    <GlassyCard style={{ minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                        <p style={{ color: 'rgba(255,255,255,0.3)', margin: 0, fontSize: '15px' }}>No entries found in your registry.</p>
-                        <Link to="/report" style={{ textDecoration: 'none' }}><Button variant="secondary" size="sm">File Incident</Button></Link>
-                    </GlassyCard>
-                ) : (
-                    incidents.map((incident) => (
-                        <div key={incident.id} onClick={() => navigate(`/issue/${incident.id}`)} style={{ cursor: 'pointer' }}>
-                            <GlassyCard style={{ padding: '20px', border: '1px solid rgba(255,255,255,0.03)' }} hoverable>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '16px' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflow: 'hidden' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                                            <span style={{
-                                                fontSize: '10px',
-                                                fontWeight: 800,
-                                                textTransform: 'uppercase',
-                                                color: getStatusColor(incident.status),
-                                                padding: '3px 8px',
-                                                borderRadius: '4px',
-                                                backgroundColor: `${getStatusColor(incident.status)}10`,
-                                                border: `1px solid ${getStatusColor(incident.status)}20`,
-                                                whiteSpace: 'nowrap'
-                                            }}>
-                                                {incident.status}
-                                            </span>
-                                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                                                {new Date(incident.created_at).toLocaleDateString()}
-                                            </span>
-                                            {incident.category && (
-                                                <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(253, 161, 54, 0.4)', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                    • {incident.category}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <h3 style={{
-                                            fontSize: '18px',
-                                            fontWeight: '700',
-                                            color: 'white',
-                                            margin: 0,
-                                            fontFamily: 'Outfit',
-                                            whiteSpace: 'nowrap',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis'
-                                        }}>
-                                            {incident.title || 'Untitled Report'}
-                                        </h3>
-
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '4px' }}>
-                                            {incident.location && (
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
-                                                    <MapPin size={12} />
-                                                    {incident.location}
-                                                </div>
-                                            )}
-                                            <button
-                                                onClick={(e) => handleVote(e, incident.id)}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '6px',
-                                                    background: incident.user_has_voted ? 'rgba(253, 161, 54, 0.1)' : 'transparent',
-                                                    border: '1px solid',
-                                                    borderColor: incident.user_has_voted ? 'rgba(253, 161, 54, 0.3)' : 'rgba(255,255,255,0.05)',
-                                                    borderRadius: '6px',
-                                                    padding: '4px 8px',
-                                                    color: incident.user_has_voted ? '#FDA136' : 'rgba(255,255,255,0.2)',
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.2s',
-                                                    fontSize: '12px',
-                                                    fontWeight: 600
-                                                }}
-                                            >
-                                                <ThumbsUp size={14} fill={incident.user_has_voted ? '#FDA136' : 'none'} />
-                                                {incident.votes_count}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <ChevronRight size={18} color="rgba(255,255,255,0.15)" />
-                                </div>
-                            </GlassyCard>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {stats.map(s => (
+                    <GlassyCard key={s.label} className="p-8 border-white/5">
+                        <div className="flex justify-between items-start mb-6">
+                            <div className={`p-3 rounded-2xl bg-white/[0.02] border border-white/5 ${s.color}`}>
+                                <s.icon size={22} />
+                            </div>
+                            <Badge variant="primary">{s.label}</Badge>
                         </div>
-                    ))
-                )}
+                        <div className="text-5xl font-black text-white font-display tracking-tighter">{s.value}</div>
+                    </GlassyCard>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
+                <GlassyCard className="p-0 overflow-hidden border-white/5 lg:col-span-2">
+                    <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
+                        <div>
+                            <h3 className="text-lg font-black text-white uppercase tracking-widest">Recent Reports</h3>
+                            <p className="text-[10px] text-white/20 mt-1 uppercase font-black tracking-[0.2em]">Submitted by you</p>
+                        </div>
+                        <Badge variant="neutral">{incidents.length} Found</Badge>
+                    </div>
+                    <div className="divide-y divide-white/5">
+                        {loading ? (
+                            <div className="p-20 text-center">
+                                <div className="animate-pulse flex flex-col items-center gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-white/5" />
+                                    <div className="text-[10px] text-white/20 font-black tracking-[0.3em] uppercase underline-offset-8">Loading Records</div>
+                                </div>
+                            </div>
+                        ) : incidents.length === 0 ? (
+                            <div className="p-24 text-center flex flex-col items-center gap-6">
+                                <div className="w-20 h-20 rounded-3xl bg-white/[0.02] border border-white/5 flex items-center justify-center text-white/5">
+                                    <AlertTriangle size={40} />
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-white/40 font-bold uppercase text-xs tracking-widest">No Issues Reported</p>
+                                    <p className="text-white/20 text-xs">Your reporting history is currently empty.</p>
+                                </div>
+                                <Link to="/report">
+                                    <Button variant="secondary" size="md">File Your First Issue</Button>
+                                </Link>
+                            </div>
+                        ) : (
+                            incidents.map((i, index) => (
+                                <motion.div
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: index * 0.05 }}
+                                    key={i.id}
+                                >
+                                    <Link to={`/issue/${i.id}`} className="no-underline group">
+                                        <div className="p-8 flex flex-col md:flex-row md:justify-between md:items-center gap-6 hover:bg-white/[0.02] transition-all cursor-pointer">
+                                            <div className="flex gap-6 items-center">
+                                                <div className="w-14 h-14 rounded-2xl bg-primary-cyan/5 border border-primary-cyan/10 flex items-center justify-center text-primary-cyan group-hover:scale-105 transition-transform duration-300">
+                                                    <Shield size={24} />
+                                                </div>
+                                                <div>
+                                                    <div className="text-base font-bold text-white group-hover:text-primary-cyan transition-colors">{i.title}</div>
+                                                    <div className="text-[10px] text-white/40 mt-1.5 font-black uppercase tracking-widest">
+                                                        {i.category} • {new Date(i.created_at).toLocaleDateString()}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-6 items-center justify-between md:justify-end">
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <Badge variant={i.status}>{i.status.replace('_', ' ')}</Badge>
+                                                    <span className="text-[10px] uppercase font-bold text-white/40 tracking-widest">{getStatusText(i.status)}</span>
+                                                </div>
+                                                <div className="w-10 h-10 rounded-xl bg-white/[0.02] flex items-center justify-center text-white/10 group-hover:text-primary-cyan group-hover:bg-primary-cyan/5 transition-all">
+                                                    <ChevronRight size={18} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                </motion.div>
+                            ))
+                        )}
+                    </div>
+                </GlassyCard>
+
+                <GlassyCard className="p-0 overflow-hidden border-white/5 border-t-primary-cyan/30 border-t-2 h-fit">
+                    <div className="p-6 border-b border-white/5 bg-white/[0.01]">
+                        <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-3">
+                            <Activity size={16} className="text-primary-cyan" /> Activity Feed
+                        </h3>
+                    </div>
+                    <div className="p-4 flex flex-col gap-2">
+                        {loading ? (
+                            <div className="text-[10px] text-center text-white/20 font-black tracking-widest uppercase p-10 animate-pulse">Syncing...</div>
+                        ) : notifications.length === 0 ? (
+                            <div className="text-[10px] text-center text-white/20 font-black tracking-widest uppercase p-10">No recent activity</div>
+                        ) : (
+                            <AnimatePresence>
+                                {notifications.map(notif => (
+                                    <motion.div 
+                                        key={notif.id}
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex gap-4"
+                                    >
+                                        <div className="w-2 h-2 mt-1.5 rounded-full bg-primary-cyan shadow-[0_0_10px_rgba(91,238,252,0.5)] shrink-0" />
+                                        <div>
+                                            <p className="text-white text-[13px] font-bold leading-tight">{notif.message}</p>
+                                            <p className="text-white/30 text-[9px] uppercase font-black tracking-widest mt-2">{new Date(notif.created_at).toLocaleString()}</p>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        )}
+                    </div>
+                </GlassyCard>
             </div>
         </div>
     );
 };
 
-const StatCard = ({ label, value, icon, accent, glow }) => (
-    <GlassyCard style={{ padding: '20px', borderLeft: `3px solid ${accent}`, backgroundColor: 'rgba(255,255,255,0.02)' }} glow={glow}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'rgba(255,255,255,0.25)', marginBottom: '8px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
-            {icon}
-        </div>
-        <div style={{ fontSize: '28px', fontWeight: 800, color: 'white', fontFamily: 'Outfit' }}>{value}</div>
-    </GlassyCard>
-);
+export default Dashboard;

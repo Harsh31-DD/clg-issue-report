@@ -1,269 +1,200 @@
-import { useEffect, useState } from 'react';
-import { AlertCircle, Clock, CheckCircle2, Shield, Search, ChevronRight, User, Mail, ThumbsUp } from 'lucide-react';
-import { GlassyCard, Input, useToast } from '../components/UI';
+import React, { useState, useEffect } from 'react';
+import { GlassyCard, Badge, Button, Input, useToast } from '../components/UI';
+import { Shield, Filter, Search, ChevronRight, Activity, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
-import { useIncidents } from '../hooks/useIncidents';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
-export const AdminDashboard = () => {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterCategory, setFilterCategory] = useState('All');
-    const [filterStatus, setFilterStatus] = useState('All');
-    const [filterDepartment, setFilterDepartment] = useState('All');
-
-    const DEPARTMENTS = ['All', 'General', 'IT Services', 'Estate Management', 'Student Affairs', 'Security', 'Library'];
-    const CATEGORIES = ['All', 'Water', 'Electricity', 'Cleanliness', 'Wi-Fi', 'Maintenance'];
-    const STATUSES = ['All', 'Pending', 'Submitted', 'In Progress', 'Resolved'];
-    const navigate = useNavigate();
-    const { incidents, loading, refetch } = useIncidents();
+const AdminDashboard = () => {
+    const [incidents, setIncidents] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('All');
+    const [offline, setOffline] = useState(!navigator.onLine);
     const { addToast } = useToast();
 
+    const fetchAll = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('incidents')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            setIncidents(data || []);
+        } catch (err) {
+            console.error("AdminDashboard fetch error:", err);
+            addToast(err.message, 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        let mounted = true;
-        const channel = supabase.channel('admin_core')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'issues' }, () => {
-                if (mounted) refetch();
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'incident_votes' }, () => {
-                if (mounted) refetch();
-            })
+        const handleOffline = () => setOffline(true);
+        const handleOnline = () => setOffline(false);
+        window.addEventListener('offline', handleOffline);
+        window.addEventListener('online', handleOnline);
+
+        fetchAll();
+
+        // Real-time subscription - Mutate state directly
+        const channel = supabase
+            .channel('admin-updates')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'incidents' },
+                (payload) => setIncidents(prev => [payload.new, ...prev].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)))
+            )
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'incidents' },
+                (payload) => setIncidents(prev => prev.map(i => i.id === payload.new.id ? payload.new : i))
+            )
+            .on(
+                'postgres_changes',
+                { event: 'DELETE', schema: 'public', table: 'incidents' },
+                (payload) => setIncidents(prev => prev.filter(i => i.id !== payload.old.id))
+            )
             .subscribe();
 
         return () => {
-            mounted = false;
+            window.removeEventListener('offline', handleOffline);
+            window.removeEventListener('online', handleOnline);
             supabase.removeChannel(channel);
         };
-    }, [refetch]);
+    }, []);
 
-    const stats = {
-        total: incidents.length,
-        pending: incidents.filter(i => i.status === 'Submitted' || i.status === 'Pending').length,
-        inProgress: incidents.filter(i => i.status === 'In Progress').length,
-        resolved: incidents.filter(i => i.status === 'Resolved').length
-    };
+    const filteredIncidents = filter === 'All' 
+        ? incidents 
+        : incidents.filter(i => i.status === filter);
 
-    const getStatusStyles = (status) => {
-        switch (status) {
-            case 'Pending':
-            case 'Submitted': return { color: '#E65A1F', bg: 'rgba(230, 90, 31, 0.1)' };
-            case 'In Progress': return { color: '#facc15', bg: 'rgba(250, 204, 21, 0.1)' };
-            case 'Resolved': return { color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' };
-            default: return { color: '#60a5fa', bg: 'rgba(96, 165, 250, 0.1)' };
-        }
-    };
-
-    // Sort incidents by upvotes (hot) descending, then by date
-    const sortedIncidents = [...incidents].sort((a, b) => {
-        if (b.votes_count !== a.votes_count) {
-            return b.votes_count - a.votes_count;
-        }
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-
-    const filteredIncidents = sortedIncidents.filter(i => {
-        const matchesSearch = (i.title || 'Untitled').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (i.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (!i.is_anonymous && (
-                (i.profiles?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (i.profiles?.email || '').toLowerCase().includes(searchQuery.toLowerCase())
-            ));
-
-        const matchesCategory = filterCategory === 'All' || i.category === filterCategory;
-        const matchesStatus = filterStatus === 'All' || (filterStatus === 'Submitted' ? (i.status === 'Submitted' || i.status === 'Pending') : i.status === filterStatus);
-        const matchesDepartment = filterDepartment === 'All' || (i.department || 'General') === filterDepartment;
-
-        return matchesSearch && matchesCategory && matchesStatus && matchesDepartment;
-    });
-
-    if (loading) {
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div style={{ height: '80px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '16px' }} />
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                    {[1, 2, 3, 4].map(i => <div key={i} style={{ height: '100px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '16px' }} />)}
-                </div>
-            </div>
-        );
-    }
+    const stats = [
+        { label: 'Total Logs', value: incidents.length, icon: Activity, color: 'text-white' },
+        { label: 'Critical', value: incidents.filter(i => i.priority === 'High').length, icon: AlertCircle, color: 'text-red-400' },
+        { label: 'Pending', value: incidents.filter(i => i.status === 'pending').length, icon: Clock, color: 'text-highlight-yellow' },
+        { label: 'Resolved', value: incidents.filter(i => i.status === 'resolved').length, icon: CheckCircle, color: 'text-accent-green' },
+    ];
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', width: '100%' }}>
-            <header>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#E65A1F', textTransform: 'uppercase', fontSize: '11px', fontWeight: 800, letterSpacing: '0.1em', marginBottom: '8px' }}>
-                    <Shield size={14} />
-                    Administrative Console
+        <div className="flex flex-col gap-10">
+            {offline && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl flex items-center justify-center gap-3 font-semibold text-sm animate-pulse">
+                    <AlertTriangle size={18} /> You are offline. Admin console connection lost.
                 </div>
-                <h1 style={{ fontSize: 'min(36px, 8vw)', fontWeight: '800', color: 'white', margin: 0, fontFamily: 'Outfit' }}>
-                    Incident Registry
-                </h1>
-            </header>
-
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-                gap: '20px'
-            }}>
-                <StatCard label="Total Workload" value={stats.total} icon={<Clock size={18} />} accent="#E65A1F" glow />
-                <StatCard label="Pending Action" value={stats.pending} icon={<AlertCircle size={18} />} accent="#facc15" glow />
-                <StatCard label="In Progress" value={stats.inProgress} icon={<Clock size={18} />} accent="#60a5fa" glow />
-                <StatCard label="Resolved" value={stats.resolved} icon={<CheckCircle2 size={18} />} accent="#10b981" glow />
+            )}
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6">
+                <div>
+                    <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter">Admin Dashboard</h1>
+                    <p className="text-white/30 mt-2 font-medium">Manage and resolve reported issues in real-time.</p>
+                </div>
+                <div className="flex gap-3">
+                    <Button variant="secondary" size="md" onClick={() => fetchAll()} className="h-12 uppercase font-black tracking-widest text-[10px]">
+                        <Activity size={16} /> Sync Records
+                    </Button>
+                </div>
             </div>
 
-            <GlassyCard style={{ padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.03)' }}>
-                <div style={{ position: 'relative' }}>
-                    <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)' }} />
-                    <Input
-                        placeholder="Filter by title, reporter, or email..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{
-                            paddingLeft: '44px',
-                            backgroundColor: 'transparent',
-                            border: 'none'
-                        }}
-                    />
-                </div>
-            </GlassyCard>
-
-            {/* Filters */}
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <select
-                    value={filterDepartment}
-                    onChange={(e) => setFilterDepartment(e.target.value)}
-                    style={{
-                        padding: '10px 16px',
-                        borderRadius: '12px',
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        color: 'white',
-                        outline: 'none',
-                        cursor: 'pointer',
-                        fontSize: '13px'
-                    }}
-                >
-                    {DEPARTMENTS.map(d => <option key={d} value={d} style={{ background: '#1a1a1a' }}>Dept: {d}</option>)}
-                </select>
-                <select
-                    value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
-                    style={{
-                        padding: '10px 16px',
-                        borderRadius: '12px',
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        color: 'white',
-                        outline: 'none',
-                        cursor: 'pointer',
-                        fontSize: '13px'
-                    }}
-                >
-                    {CATEGORIES.map(c => <option key={c} value={c} style={{ background: '#1a1a1a' }}>Cat: {c}</option>)}
-                </select>
-                <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    style={{
-                        padding: '10px 16px',
-                        borderRadius: '12px',
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        color: 'white',
-                        outline: 'none',
-                        cursor: 'pointer',
-                        fontSize: '13px'
-                    }}
-                >
-                    {STATUSES.map(s => <option key={s} value={s} style={{ background: '#1a1a1a' }}>Status: {s}</option>)}
-                </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {filteredIncidents.length === 0 ? (
-                    <GlassyCard style={{ padding: '60px', textAlign: 'center', opacity: 0.6 }}>
-                        <p style={{ margin: 0, color: 'rgba(255,255,255,0.4)', fontSize: '14px' }}>
-                            {searchQuery ? 'Search yielded no matches.' : 'Incident queue is currently empty.'}
-                        </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {stats.map(s => (
+                    <GlassyCard key={s.label} className="p-8 border-white/5">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className={`p-2.5 rounded-xl bg-white/[0.02] border border-white/5 ${s.color}`}>
+                                <s.icon size={18} />
+                            </div>
+                            <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">{s.label}</span>
+                        </div>
+                        <div className="text-5xl font-black text-white font-display tracking-tighter">{s.value}</div>
                     </GlassyCard>
-                ) : (
-                    filteredIncidents.map((incident) => {
-                        const statusStyle = getStatusStyles(incident.status);
-                        return (
-                            <div key={incident.id} onClick={() => navigate(`/admin/issue/${incident.id}`)} style={{ cursor: 'pointer' }}>
-                                <GlassyCard style={{ padding: '20px', border: '1px solid rgba(255,255,255,0.03)' }} hoverable>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '16px' }}>
-                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                                                <span style={{
-                                                    fontSize: '10px',
-                                                    fontWeight: 800,
-                                                    textTransform: 'uppercase',
-                                                    color: statusStyle.color,
-                                                    padding: '4px 10px',
-                                                    borderRadius: '4px',
-                                                    backgroundColor: statusStyle.bg,
-                                                    border: `1px solid ${statusStyle.color}20`,
-                                                    whiteSpace: 'nowrap'
-                                                }}>
-                                                    {incident.status}
-                                                </span>
-                                                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                                                    {new Date(incident.created_at).toLocaleDateString()}
-                                                </span>
-                                                {incident.votes_count > 0 && (
-                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#FDA136', fontWeight: 800, whiteSpace: 'nowrap' }}>
-                                                        <ThumbsUp size={10} fill="#FDA136" />
-                                                        {incident.votes_count} UPVOTES
-                                                    </span>
-                                                )}
+                ))}
+            </div>
+
+            <GlassyCard className="p-0 overflow-hidden border-white/5">
+                <div className="p-8 border-b border-white/5 flex flex-col md:flex-row md:justify-between md:items-center gap-8 bg-white/[0.01]">
+                    <div>
+                        <h3 className="text-lg font-black text-white uppercase tracking-widest">Issue Management</h3>
+                        <p className="text-[10px] text-white/20 mt-1 uppercase font-black tracking-[0.2em]">Filter by Status</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="flex bg-white/[0.02] p-1.5 rounded-2xl border border-white/5 overflow-x-auto max-w-full hidden-scrollbar">
+                            {['All', 'pending', 'noted', 'in_progress', 'resolved'].map(tab => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setFilter(tab)}
+                                    className={`px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 cursor-pointer whitespace-nowrap ${
+                                        filter === tab 
+                                            ? 'bg-primary-cyan/20 text-primary-cyan shadow-[0_0_20px_rgba(91,238,252,0.1)]' 
+                                            : 'text-white/20 hover:text-white/40'
+                                    }`}
+                                >
+                                    {tab.replace('_', ' ')}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="divide-y divide-white/5">
+                    {loading ? (
+                        <div className="p-24 text-center">
+                            <div className="animate-pulse flex flex-col items-center gap-6">
+                                <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10" />
+                                <div className="text-[10px] text-white/20 font-black tracking-[0.4em] uppercase">Fetching Incident Logs</div>
+                            </div>
+                        </div>
+                    ) : filteredIncidents.length === 0 ? (
+                        <div className="p-24 text-center flex flex-col items-center gap-6">
+                            <div className="w-20 h-20 rounded-3xl bg-white/[0.02] border border-white/5 flex items-center justify-center text-white/5">
+                                <Shield size={40} />
+                            </div>
+                            <p className="text-white/20 font-black uppercase tracking-widest text-xs">No matching records found</p>
+                        </div>
+                    ) : (
+                        filteredIncidents.map((i, index) => (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                key={i.id}
+                            >
+                                <Link to={`/admin/issue/${i.id}`} className="no-underline group">
+                                    <div className="p-8 flex flex-col md:flex-row md:justify-between md:items-center gap-8 hover:bg-white/[0.02] transition-all cursor-pointer">
+                                        <div className="flex gap-6 items-center">
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                                                i.priority === 'High' 
+                                                    ? 'bg-red-500/5 text-red-500 border border-red-500/10' 
+                                                    : 'bg-white/[0.02] text-white/20 border border-white/5'
+                                            } group-hover:scale-105`}>
+                                                <Activity size={24} />
                                             </div>
-
-                                            <h3 style={{
-                                                fontSize: '18px',
-                                                fontWeight: '700',
-                                                color: 'white',
-                                                margin: 0,
-                                                fontFamily: 'Outfit',
-                                                whiteSpace: 'nowrap',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis'
-                                            }}>
-                                                {incident.title || 'Untitled Incident'}
-                                            </h3>
-
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px', color: 'rgba(255,255,255,0.4)', flexWrap: 'wrap' }}>
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', maxWidth: '100%', overflow: 'hidden' }}>
-                                                    <User size={13} style={{ flexShrink: 0 }} />
-                                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                        {incident.is_anonymous ?
-                                                            <span style={{ fontStyle: 'italic', opacity: 0.7 }}>Anonymous Reporter</span> :
-                                                            (incident.profiles?.name || 'Unknown')}
-                                                    </span>
-                                                    {incident.reporter_role && (
-                                                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', marginLeft: '4px', whiteSpace: 'nowrap' }}>
-                                                            [{incident.reporter_role.replace('_', ' ')}]
-                                                        </span>
-                                                    )}
-                                                </span>
+                                            <div>
+                                                <div className="text-base font-bold text-white group-hover:text-primary-cyan transition-colors">{i.title}</div>
+                                                <div className="text-[10px] text-white/20 mt-1 font-black uppercase tracking-widest flex items-center gap-3">
+                                                    <span>REF-{i.id.slice(0, 6).toUpperCase()}</span>
+                                                    <span className="w-1 h-1 rounded-full bg-white/10" />
+                                                    <span>{i.category}</span>
+                                                    <span className="w-1 h-1 rounded-full bg-white/10" />
+                                                    <span>{new Date(i.created_at).toLocaleDateString()}</span>
+                                                </div>
                                             </div>
                                         </div>
-                                        <ChevronRight size={20} color="rgba(255,255,255,0.15)" style={{ flexShrink: 0 }} />
+                                        <div className="flex gap-6 items-center justify-between md:justify-end">
+                                            <div className="flex gap-3">
+                                                <Badge variant={i.priority === 'High' ? 'error' : 'primary'}>{i.priority}</Badge>
+                                                <Badge variant={i.status}>{i.status.replace('_', ' ')}</Badge>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-xl bg-white/[0.02] flex items-center justify-center text-white/10 group-hover:text-primary-cyan group-hover:bg-primary-cyan/5 transition-all">
+                                                <ChevronRight size={18} />
+                                            </div>
+                                        </div>
                                     </div>
-                                </GlassyCard>
-                            </div>
-                        );
-                    })
-                )}
-            </div>
+                                </Link>
+                            </motion.div>
+                        ))
+                    )}
+                </div>
+            </GlassyCard>
         </div>
     );
 };
 
-const StatCard = ({ label, value, icon, accent, glow }) => (
-    <GlassyCard style={{ padding: '20px', borderLeft: `3px solid ${accent}`, backgroundColor: 'rgba(255,255,255,0.02)' }} glow={glow}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'rgba(255,255,255,0.25)', marginBottom: '8px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
-            {icon}
-        </div>
-        <div style={{ fontSize: '28px', fontWeight: 800, color: 'white', fontFamily: 'Outfit' }}>{value}</div>
-    </GlassyCard>
-);
+export default AdminDashboard;

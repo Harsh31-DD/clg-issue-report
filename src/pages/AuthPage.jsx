@@ -1,59 +1,82 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User, ArrowRight, Briefcase, GraduationCap, HardHat, ShieldCheck } from 'lucide-react';
-import { Button, Input, GlassyCard, useToast } from '../components/UI';
+import { Button, Input, GlassyCard, useToast, Badge } from '../components/UI';
 import { supabase } from '../lib/supabase';
-import { AuthLayout } from '../components/AuthLayout';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-export const AuthPage = () => {
+const AuthPage = () => {
     const [isLogin, setIsLogin] = useState(true);
     const [loading, setLoading] = useState(false);
     const [role, setRole] = useState('student');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
-    const [error, setError] = useState(null);
     const { addToast } = useToast();
+    const navigate = useNavigate();
+
+    const validateForm = () => {
+        if (!email.includes('@')) {
+            addToast('Please enter a valid email address.', 'error');
+            return false;
+        }
+        if (password.length < 6) {
+            addToast('Password must be at least 6 characters.', 'error');
+            return false;
+        }
+        if (!isLogin && !name.trim()) {
+            addToast('Please enter your full name.', 'error');
+            return false;
+        }
+        return true;
+    };
 
     const handleAuth = async (e) => {
         e.preventDefault();
+        if (!validateForm()) return;
         setLoading(true);
-        setError(null);
 
         try {
             if (isLogin) {
-                const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-                if (authError) throw authError;
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
 
-                if (data.user) {
-                    const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
-                    if (profile?.role?.toLowerCase() === 'admin') {
-                        await supabase.auth.signOut();
-                        throw new Error('Please use the Administrative Portal for admin access.');
-                    }
-                    window.location.href = '/home'; // Redirect to home page as requested
+                // Role check handled in AuthContext, but let's be explicit for UX
+                const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
+                if (profile?.role === 'admin') {
+                    await supabase.auth.signOut();
+                    throw new Error('Please use the Administrative Portal for admin access.');
                 }
+
+                addToast('Access granted.', 'success');
+                navigate('/dashboard');
             } else {
-                const { data: authData, error: authError } = await supabase.auth.signUp({
+                const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
-                    options: {
-                        data: {
-                            name,
-                            role: role
-                        }
+                    options: { 
+                        data: { name, role },
+                        emailRedirectTo: `${window.location.origin}/auth`
                     }
                 });
-                if (authError) throw authError;
+                if (error) throw error;
 
-                if (authData.user) {
-                    addToast('Registration initiated. Verification required.', 'success');
+                if (data.user) {
+                    // Manual profile creation if trigger not used, or as fallback
+                    const { error: profileError } = await supabase.from('profiles').upsert({ 
+                        id: data.user.id, 
+                        name, 
+                        email, 
+                        role 
+                    });
+                    if (profileError) console.error('Profile creation error:', profileError);
+                    
+                    addToast('Registry created. Please check your email or login.', 'success');
                     setIsLogin(true);
                 }
             }
         } catch (err) {
-            setError(err.message || 'An unexpected error occurred');
+            addToast(err.message, 'error');
         } finally {
             setLoading(false);
         }
@@ -61,230 +84,116 @@ export const AuthPage = () => {
 
     const roles = [
         { id: 'student', label: 'Student', icon: GraduationCap },
-        { id: 'teaching', label: 'Teaching Staff', icon: Briefcase },
-        { id: 'non_teaching', label: 'Non-Teaching', icon: HardHat }
+        { id: 'teaching', label: 'Faculty', icon: Briefcase },
+        { id: 'non_teaching', label: 'Technical', icon: HardHat }
     ];
 
     return (
-        <AuthLayout>
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 30 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                style={{ position: 'relative' }}
-            >
-                <Link
-                    to="/"
-                    style={{
-                        position: 'absolute',
-                        top: '-48px',
-                        left: '0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        color: 'rgba(255,255,255,0.3)',
-                        textDecoration: 'none',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.color = '#FDA136';
-                        e.currentTarget.style.transform = 'translateX(-4px)';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.color = 'rgba(255,255,255,0.3)';
-                        e.currentTarget.style.transform = 'translateX(0)';
-                    }}
-                >
-                    <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />
-                    Return to Home
-                </Link>
+        <div className="max-w-[520px] mx-auto w-full px-4">
+            <Link to="/" className="flex items-center gap-2 text-white/10 hover:text-white/30 transition-colors text-[11px] font-black uppercase mb-8 no-underline group tracking-widest">
+                <ArrowRight size={14} className="rotate-180 group-hover:-translate-x-1 transition-transform" /> 
+                Go Back
+            </Link>
 
-                <GlassyCard glow style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '40px',
-                    padding: 'max(40px, 5vw)',
-                    border: '1px solid rgba(253, 161, 54, 0.15)',
-                    background: 'rgba(15, 23, 42, 0.8)',
-                    backdropFilter: 'blur(20px)',
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(253, 161, 54, 0.05)'
-                }}>
-                    <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            color: '#FDA136',
-                            fontSize: '11px',
-                            fontWeight: 800,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.2em',
-                            marginBottom: '4px'
-                        }}>
-                            <ShieldCheck size={14} />
-                            Security Protocol Alpha
-                        </div>
-                        <h2 style={{
-                            fontSize: 'clamp(28px, 4vw, 36px)',
-                            fontWeight: '900',
-                            color: 'white',
-                            margin: 0,
-                            fontFamily: 'Outfit',
-                            letterSpacing: '-1px',
-                            lineHeight: 1.1
-                        }}>
-                            {isLogin ? 'Access Portal' : 'Citizen Registry'}
-                        </h2>
-                        <p style={{ color: 'rgba(237, 237, 243, 0.4)', fontSize: '15px', margin: 0, fontWeight: 400 }}>
-                            {isLogin ? 'Provide credentials to bypass neutral zone' : 'Initialize your standing in the campus network'}
-                        </p>
+            <GlassyCard className="p-8 md:p-12 border-white/5">
+                <div className="text-center mb-10">
+                    <div className="inline-flex mb-4">
+                        <Badge variant="primary">
+                            <ShieldCheck size={12} className="mr-2" /> Secure Access
+                        </Badge>
                     </div>
+                    <h2 className="text-3xl md:text-4xl font-black text-white font-display uppercase tracking-tighter">
+                        {isLogin ? 'Login to your account' : 'Create an Account'}
+                    </h2>
+                    <p className="mt-2 text-[14px] text-white/30 font-medium">
+                        {isLogin ? 'Enter your email and password' : 'Sign up to start reporting campus issues.'}
+                    </p>
+                </div>
 
-                    <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <AnimatePresence mode="wait">
-                            {!isLogin && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                                    animate={{ opacity: 1, height: 'auto', marginTop: 10 }}
-                                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                                    style={{ display: 'flex', flexDirection: 'column', gap: '20px', overflow: 'hidden' }}
-                                >
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                        <label style={{ fontSize: '10px', fontWeight: 800, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Entity Designation</label>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                                            {roles.map((r) => {
-                                                const Icon = r.icon;
-                                                const active = role === r.id;
-                                                return (
-                                                    <button
-                                                        key={r.id}
-                                                        type="button"
-                                                        onClick={() => setRole(r.id)}
-                                                        style={{
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            alignItems: 'center',
-                                                            gap: '8px',
-                                                            padding: '12px 8px',
-                                                            borderRadius: '12px',
-                                                            border: '1px solid',
-                                                            borderColor: active ? '#FDA136' : 'rgba(255, 255, 255, 0.05)',
-                                                            background: active ? 'rgba(253, 161, 54, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                                                            color: active ? 'white' : 'rgba(255, 255, 255, 0.4)',
-                                                            fontSize: '11px',
-                                                            fontWeight: 700,
-                                                            cursor: 'pointer',
-                                                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-                                                        }}
-                                                    >
-                                                        <Icon size={18} color={active ? '#FDA136' : 'currentColor'} />
-                                                        {r.label.split(' ')[0]}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    <div style={{ position: 'relative' }}>
-                                        <User style={{ position: 'absolute', left: '16px', top: '16px', color: 'rgba(253, 161, 54, 0.4)' }} size={18} />
-                                        <Input
-                                            placeholder="Subject Full Name"
-                                            style={{ paddingLeft: '48px', height: '52px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        <div style={{ position: 'relative' }}>
-                            <Mail style={{ position: 'absolute', left: '16px', top: '16px', color: 'rgba(253, 161, 54, 0.4)' }} size={18} />
-                            <Input
-                                type="email"
-                                placeholder="Network Identifier (Email)"
-                                style={{ paddingLeft: '48px', height: '52px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                            />
-                        </div>
-
-                        <div style={{ position: 'relative' }}>
-                            <Lock style={{ position: 'absolute', left: '16px', top: '16px', color: 'rgba(253, 161, 54, 0.4)' }} size={18} />
-                            <Input
-                                type="password"
-                                placeholder="Secure Encryption Key"
-                                style={{ paddingLeft: '48px', height: '52px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                minLength={6}
-                            />
-                        </div>
-
-                        {error && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                style={{
-                                    padding: '14px',
-                                    borderRadius: '12px',
-                                    background: 'rgba(220, 38, 38, 0.1)',
-                                    border: '1px solid rgba(220, 38, 38, 0.2)',
-                                    color: '#f87171',
-                                    fontSize: '13px',
-                                    textAlign: 'center',
-                                    fontWeight: 500
-                                }}
+                <form onSubmit={handleAuth} className="flex flex-col gap-6">
+                    <AnimatePresence mode="wait">
+                        {!isLogin && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0 }} 
+                                animate={{ opacity: 1, height: 'auto' }} 
+                                exit={{ opacity: 0, height: 0 }}
+                                className="flex flex-col gap-6 overflow-hidden"
                             >
-                                SYNTAX ERROR: {error}
+                                <div className="flex flex-col gap-3">
+                                    <label className="text-[10px] font-black text-white/10 uppercase tracking-[0.2em] px-1">Choose Account Type</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {roles.map(r => (
+                                            <button 
+                                                key={r.id} 
+                                                type="button" 
+                                                onClick={() => setRole(r.id)} 
+                                                className={`py-4 rounded-2xl border flex flex-col items-center gap-2 transition-all duration-300 cursor-pointer ${
+                                                    role === r.id 
+                                                        ? 'bg-primary-cyan/10 border-primary-cyan/40 text-white shadow-[0_0_20px_rgba(91,238,252,0.05)]' 
+                                                        : 'bg-white/[0.01] border-white/5 text-white/20 hover:bg-white/[0.03]'
+                                                }`}
+                                            >
+                                                <r.icon size={18} className={role === r.id ? 'text-primary-cyan' : ''} /> 
+                                                <span className="text-[10px] font-bold tracking-tight">{r.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="relative">
+                                    <User size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20" />
+                                    <Input 
+                                        placeholder="Full Name" 
+                                        value={name} 
+                                        onChange={e => setName(e.target.value)} 
+                                        className="pl-14" 
+                                    />
+                                </div>
                             </motion.div>
                         )}
+                    </AnimatePresence>
 
-                        <Button
-                            type="submit"
-                            glow
-                            style={{
-                                width: '100%',
-                                height: '56px',
-                                marginTop: '12px',
-                                position: 'relative',
-                                overflow: 'hidden'
-                            }}
-                            loading={loading}
-                        >
-                            {isLogin ? 'Establish Handshake' : 'Commit Registry'}
-                            <ArrowRight size={18} style={{ marginLeft: '12px' }} />
-                        </Button>
-                    </form>
-
-                    <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '24px' }}>
-                        <button
-                            onClick={() => setIsLogin(!isLogin)}
-                            style={{
-                                color: 'rgba(255, 255, 255, 0.3)',
-                                fontSize: '14px',
-                                background: 'transparent',
-                                border: 'none',
-                                cursor: 'pointer',
-                                fontWeight: 500,
-                                transition: 'color 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.color = '#FDA136'}
-                            onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.3)'}
-                        >
-                            {isLogin ? "Status: Unregistered? Toggle Enrollment" : 'Status: Established? Switch to Authentication'}
-                        </button>
+                    <div className="relative">
+                        <Mail size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20" />
+                        <Input 
+                            type="email" 
+                            placeholder="Email Address" 
+                            value={email} 
+                            onChange={e => setEmail(e.target.value)} 
+                            className="pl-14" 
+                            required 
+                        />
                     </div>
-                </GlassyCard>
-            </motion.div>
-        </AuthLayout>
+
+                    <div className="relative">
+                        <Lock size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20" />
+                        <Input 
+                            type="password" 
+                            placeholder="Password" 
+                            value={password} 
+                            onChange={e => setPassword(e.target.value)} 
+                            className="pl-14" 
+                            required 
+                        />
+                    </div>
+
+                    <Button type="submit" loading={loading} size="lg" className="mt-4 w-full group uppercase tracking-widest font-black text-[12px] h-14">
+                        {isLogin ? 'Sign In' : 'Sign Up'} 
+                        <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                </form>
+
+                <div className="mt-8 pt-8 border-t border-white/5 text-center">
+                    <button 
+                        type="button" 
+                        onClick={() => setIsLogin(!isLogin)} 
+                        className="text-white/20 hover:text-primary-cyan text-[11px] font-black uppercase tracking-widest transition-colors cursor-pointer"
+                    >
+                        {isLogin ? "Need an account? Sign Up" : "Already have an account? Sign In"}
+                    </button>
+                </div>
+            </GlassyCard>
+        </div>
     );
 };
+
+export default AuthPage;
