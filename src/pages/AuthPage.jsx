@@ -120,7 +120,7 @@ const AuthPage = () => {
                             >
                                 <div className="flex flex-col gap-3">
                                     <label className="text-[10px] font-black text-white/10 uppercase tracking-[0.2em] px-1">Choose Account Type</label>
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         {roles.map(r => (
                                             <button 
                                                 key={r.id} 

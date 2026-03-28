@@ -96,7 +96,7 @@ const IssueDetail = () => {
     );
 
     return (
-        <div className="max-w-7xl mx-auto px-4 flex flex-col gap-10">
+        <div className="max-w-5xl mx-auto flex flex-col gap-6">
             <div className="flex items-center justify-between">
                 <Button variant="secondary" size="md" onClick={() => navigate(-1)} iconOnly className="h-12 w-12 rounded-2xl">
                     <ChevronLeft size={20} />
@@ -112,9 +112,9 @@ const IssueDetail = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
-                <div className="lg:col-span-2 flex flex-col gap-10">
-                    <GlassyCard className="p-10 md:p-14 relative overflow-hidden group border-white/5">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div className="lg:col-span-2 flex flex-col gap-6">
+                    <GlassyCard className="p-6 sm:p-10 md:p-14 relative overflow-hidden group border-white/5">
                         <div
                             className="absolute top-0 right-0 p-10 opacity-[0.02] group-hover:opacity-[0.04] transition-opacity duration-1000 pointer-events-none"
                             style={{ color: getStatusColor(incident.status) }}
@@ -134,7 +134,7 @@ const IssueDetail = () => {
                                 </span>
                             </div>
                             
-                            <h1 className="text-3xl md:text-6xl font-black text-white leading-[1] font-display uppercase tracking-tighter">{incident.title}</h1>
+                            <h1 className="text-2xl sm:text-4xl md:text-6xl font-black text-white leading-[1] font-display uppercase tracking-tighter">{incident.title}</h1>
                             
                             <div className="h-1 bg-gradient-to-r from-primary-cyan/30 to-transparent w-40 rounded-full" />
                             

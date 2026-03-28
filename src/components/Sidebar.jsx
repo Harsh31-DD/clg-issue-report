@@ -1,24 +1,24 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard,
     FileText,
     Shield,
-    Settings,
-    ChevronRight,
-    Command
+    Command,
+    X,
+    ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const SidebarLink = ({ to, icon: Icon, label, active }) => (
-    <Link to={to} className="no-underline">
+const SidebarLink = ({ to, icon: Icon, label, active, onClick }) => (
+    <Link to={to} className="no-underline" onClick={onClick}>
         <motion.div
             whileHover={{ x: 4 }}
             whileTap={{ scale: 0.98 }}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 mb-1 relative border ${
-                active 
-                    ? 'text-white bg-white/[0.04] border-white/[0.12]' 
+                active
+                    ? 'text-white bg-white/[0.04] border-white/[0.12]'
                     : 'text-white/30 bg-transparent border-transparent'
             }`}
         >
@@ -33,7 +33,7 @@ const SidebarLink = ({ to, icon: Icon, label, active }) => (
     </Link>
 );
 
-export const Sidebar = () => {
+export const Sidebar = ({ isOpen, onClose }) => {
     const location = useLocation();
     const { userRole } = useAuth();
     const isAdmin = userRole === 'admin' || userRole === 'super_admin';
@@ -45,20 +45,31 @@ export const Sidebar = () => {
         { to: '/report', icon: FileText, label: 'Report New Issue' },
     ];
 
-    return (
-        <aside className="w-[280px] h-screen fixed left-0 top-0 bg-[#0d1114]/80 backdrop-blur-4xl border-r border-white/5 flex flex-col p-8 md:p-4 z-50">
-            <div className="flex items-center gap-3 mb-12 px-2">
-                <div className="w-9 h-9 bg-gradient-to-br from-primary-cyan to-accent-green rounded-[10px] flex items-center justify-center shadow-[0_0_20px_rgba(91,238,252,0.2)]">
-                    <Shield size={20} className="text-bg-dark" />
+    const sidebarContent = (
+        <aside className="w-[280px] h-screen bg-[#0d1114]/95 backdrop-blur-xl border-r border-white/5 flex flex-col p-6 lg:p-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-10 px-2">
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-gradient-to-br from-primary-cyan to-accent-green rounded-[10px] flex items-center justify-center shadow-[0_0_20px_rgba(91,238,252,0.2)]">
+                        <Shield size={20} className="text-bg-dark" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-black text-white font-display uppercase tracking-tight">CIRTS</h2>
+                        <p className="text-[9px] font-black text-primary-cyan uppercase tracking-[0.15em]">
+                            {isAdmin ? 'Admin Panel' : 'Student & Staff'}
+                        </p>
+                    </div>
                 </div>
-                <div>
-                    <h2 className="text-lg font-black text-white font-display uppercase tracking-tight">CIRTS</h2>
-                    <p className="text-[9px] font-black text-primary-cyan uppercase tracking-[0.15em]">
-                        {isAdmin ? 'Admin Panel' : 'Student & Staff'}
-                    </p>
-                </div>
+                {/* Close button — mobile only */}
+                <button
+                    onClick={onClose}
+                    className="lg:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                >
+                    <X size={16} />
+                </button>
             </div>
 
+            {/* Nav */}
             <nav className="flex-1">
                 <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] px-4 mb-4">
                     Navigation
@@ -70,10 +81,12 @@ export const Sidebar = () => {
                         icon={item.icon}
                         label={item.label}
                         active={location.pathname === item.to}
+                        onClick={onClose}
                     />
                 ))}
             </nav>
 
+            {/* Footer */}
             <div className="mt-auto p-4 bg-white/[0.01] rounded-2xl border border-white/5 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-white/[0.03] grid place-items-center text-white/20">
                     <Command size={14} />
@@ -84,5 +97,29 @@ export const Sidebar = () => {
                 </div>
             </div>
         </aside>
+    );
+
+    return (
+        <>
+            {/* Desktop: always visible */}
+            <div className="hidden lg:flex fixed left-0 top-0 z-50">
+                {sidebarContent}
+            </div>
+
+            {/* Mobile: slide-in drawer */}
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ x: -280 }}
+                        animate={{ x: 0 }}
+                        exit={{ x: -280 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                        className="lg:hidden fixed left-0 top-0 z-50"
+                    >
+                        {sidebarContent}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </>
     );
 };

@@ -117,37 +117,37 @@ const Dashboard = () => {
                     <AlertTriangle size={18} /> You are offline. Connection Lost.
                 </div>
             )}
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter">Your Reported Issues</h1>
-                    <p className="text-white/30 mt-2 font-medium">Track status of your complaints instantly.</p>
+                    <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white uppercase tracking-tighter">Your Reported Issues</h1>
+                    <p className="text-white/30 mt-1 text-sm font-medium">Track status of your complaints instantly.</p>
                 </div>
                 <Link to="/report" className="no-underline">
-                    <Button size="lg" className="h-14 px-8 uppercase font-black tracking-widest text-[11px] group">
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform" /> 
+                    <Button size="lg" className="w-full sm:w-auto h-12 px-6 uppercase font-black tracking-widest text-[11px] group">
+                        <Plus size={16} className="group-hover:rotate-90 transition-transform" /> 
                         Report New Issue
                     </Button>
                 </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {stats.map(s => (
-                    <GlassyCard key={s.label} className="p-8 border-white/5">
-                        <div className="flex justify-between items-start mb-6">
+                    <GlassyCard key={s.label} className="p-5 sm:p-8 border-white/5">
+                        <div className="flex justify-between items-start mb-4">
                             <div
-                                className="p-3 rounded-2xl bg-white/[0.02] border border-white/5"
+                                className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5"
                                 style={{ color: s.color }}
                             >
-                                <s.icon size={22} />
+                                <s.icon size={20} />
                             </div>
                             <Badge variant="primary">{s.label}</Badge>
                         </div>
-                        <div className="text-5xl font-black text-white font-display tracking-tighter">{s.value}</div>
+                        <div className="text-4xl sm:text-5xl font-black text-white font-display tracking-tighter">{s.value}</div>
                     </GlassyCard>
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
                 <GlassyCard className="p-0 overflow-hidden border-white/5 lg:col-span-2">
                     <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
                         <div>

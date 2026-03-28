@@ -54,16 +54,16 @@ const HeroPage = () => {
                     Report and track campus issues easily. Ensuring a better campus environment through transparent and quick reporting.
                 </p>
 
-                <div className="flex flex-col sm:flex-row gap-5 justify-center items-center">
+                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full">
                     {isAuthenticated ? (
                         <>
                             <Link to="/dashboard" className="no-underline w-full sm:w-auto">
-                                <Button size="lg" className="w-full sm:min-w-[200px] h-14 text-sm font-bold tracking-wider uppercase group">
-                                    Dashboard <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                <Button size="lg" className="w-full sm:min-w-[180px] h-12 sm:h-14 text-sm font-bold tracking-wider uppercase group">
+                                    Dashboard <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                                 </Button>
                             </Link>
                             <Link to="/report" className="no-underline w-full sm:w-auto">
-                                <Button variant="secondary" size="lg" className="w-full sm:min-w-[200px] h-14 text-sm font-bold tracking-wider uppercase">
+                                <Button variant="secondary" size="lg" className="w-full sm:min-w-[180px] h-12 sm:h-14 text-sm font-bold tracking-wider uppercase">
                                     Report Issue
                                 </Button>
                             </Link>
@@ -71,12 +71,12 @@ const HeroPage = () => {
                     ) : (
                         <>
                             <Link to="/auth" className="no-underline w-full sm:w-auto">
-                                <Button size="lg" className="w-full sm:min-w-[200px] h-14 text-sm font-bold tracking-wider uppercase group">
-                                    Login <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                <Button size="lg" className="w-full sm:min-w-[180px] h-12 sm:h-14 text-sm font-bold tracking-wider uppercase group">
+                                    Login <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                                 </Button>
                             </Link>
                             <Link to="/report" className="no-underline w-full sm:w-auto">
-                                <Button variant="secondary" size="lg" className="w-full sm:min-w-[200px] h-14 text-sm font-bold tracking-wider uppercase">
+                                <Button variant="secondary" size="lg" className="w-full sm:min-w-[180px] h-12 sm:h-14 text-sm font-bold tracking-wider uppercase">
                                     Report Issue
                                 </Button>
                             </Link>
@@ -92,7 +92,7 @@ const HeroPage = () => {
                 </div>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl mt-32 relative z-10">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full max-w-6xl mt-20 sm:mt-32 relative z-10 px-4">
                 <FeatureCard
                     delay={0.1}
                     icon={<Activity size={24} />}

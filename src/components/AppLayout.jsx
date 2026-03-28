@@ -1,23 +1,31 @@
+import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { useAuth } from '../context/AuthContext';
 
 export const AppLayout = () => {
-    const { userRole } = useAuth();
-    const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     return (
         <div className="flex min-h-screen bg-transparent text-white font-sans">
-            {/* Sidebar (Fixed Area) */}
-            <Sidebar />
+            {/* Mobile Overlay */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
 
-            <div className="flex-1 ml-[280px] flex flex-col min-w-0 relative">
-                {/* Header (Sticky Area) */}
-                <Header />
+            {/* Sidebar */}
+            <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-                {/* Content Area */}
-                <main className="pt-[calc(80px+theme(spacing.10))] p-10 flex-1 overflow-y-auto w-full max-w-[1600px] mx-auto relative z-10">
+            {/* Main content area */}
+            <div className="flex-1 flex flex-col min-w-0 lg:ml-[280px]">
+                {/* Header */}
+                <Header onMenuClick={() => setSidebarOpen(true)} />
+
+                {/* Page content */}
+                <main className="pt-[80px] p-4 sm:p-6 lg:p-10 flex-1 w-full max-w-[1600px] mx-auto relative z-10">
                     <Outlet />
                 </main>
 

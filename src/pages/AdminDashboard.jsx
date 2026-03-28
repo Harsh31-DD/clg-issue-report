@@ -92,50 +92,50 @@ const AdminDashboard = () => {
                     <AlertTriangle size={18} /> You are offline. Admin console connection lost.
                 </div>
             )}
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter">Admin Dashboard</h1>
-                    <p className="text-white/30 mt-2 font-medium">Manage and resolve reported issues in real-time.</p>
+                    <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white uppercase tracking-tighter">Admin Dashboard</h1>
+                    <p className="text-white/30 mt-1 text-sm font-medium">Manage and resolve reported issues in real-time.</p>
                 </div>
                 <div className="flex gap-3">
-                    <Button variant="secondary" size="md" onClick={() => fetchAll()} className="h-12 uppercase font-black tracking-widest text-[10px]">
-                        <Activity size={16} /> Sync Records
+                    <Button variant="secondary" size="md" onClick={() => fetchAll()} className="w-full sm:w-auto h-11 uppercase font-black tracking-widest text-[10px]">
+                        <Activity size={15} /> Sync Records
                     </Button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {stats.map(s => (
-                    <GlassyCard key={s.label} className="p-8 border-white/5">
-                        <div className="flex items-center gap-3 mb-6">
+                    <GlassyCard key={s.label} className="p-4 sm:p-6 border-white/5">
+                        <div className="flex items-center gap-2 mb-4">
                             <div
-                                className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5"
+                                className="p-2 rounded-lg bg-white/[0.02] border border-white/5"
                                 style={{ color: s.color }}
                             >
-                                <s.icon size={18} />
+                                <s.icon size={16} />
                             </div>
-                            <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">{s.label}</span>
+                            <span className="text-[9px] sm:text-[10px] font-black text-white/20 uppercase tracking-[0.15em] leading-tight">{s.label}</span>
                         </div>
-                        <div className="text-5xl font-black text-white font-display tracking-tighter">{s.value}</div>
+                        <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white font-display tracking-tighter">{s.value}</div>
                     </GlassyCard>
                 ))}
             </div>
 
             <GlassyCard className="p-0 overflow-hidden border-white/5">
-                <div className="p-8 border-b border-white/5 flex flex-col md:flex-row md:justify-between md:items-center gap-8 bg-white/[0.01]">
+                <div className="p-4 sm:p-6 border-b border-white/5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-white/[0.01]">
                     <div>
-                        <h3 className="text-lg font-black text-white uppercase tracking-widest">Issue Management</h3>
+                        <h3 className="text-sm sm:text-lg font-black text-white uppercase tracking-widest">Issue Management</h3>
                         <p className="text-[10px] text-white/20 mt-1 uppercase font-black tracking-[0.2em]">Filter by Status</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="flex bg-white/[0.02] p-1.5 rounded-2xl border border-white/5 overflow-x-auto max-w-full hidden-scrollbar">
+                    <div className="overflow-x-auto">
+                        <div className="flex bg-white/[0.02] p-1 rounded-xl border border-white/5 gap-0.5 min-w-max">
                             {['All', 'pending', 'noted', 'in_progress', 'resolved'].map(tab => (
                                 <button
                                     key={tab}
                                     onClick={() => setFilter(tab)}
-                                    className={`px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 cursor-pointer whitespace-nowrap ${
-                                        filter === tab 
-                                            ? 'bg-primary-cyan/20 text-primary-cyan shadow-[0_0_20px_rgba(91,238,252,0.1)]' 
+                                    className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all duration-300 cursor-pointer whitespace-nowrap ${
+                                        filter === tab
+                                            ? 'bg-primary-cyan/20 text-primary-cyan'
                                             : 'text-white/20 hover:text-white/40'
                                     }`}
                                 >
@@ -170,17 +170,17 @@ const AdminDashboard = () => {
                                 key={i.id}
                             >
                                 <Link to={`/admin/issue/${i.id}`} className="no-underline group">
-                                    <div className="p-8 flex flex-col md:flex-row md:justify-between md:items-center gap-8 hover:bg-white/[0.02] transition-all cursor-pointer">
-                                        <div className="flex gap-6 items-center">
+                                    <div className="p-4 sm:p-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 hover:bg-white/[0.02] transition-all cursor-pointer">
+                                        <div className="flex gap-4 items-center">
                                             <div
-                                                className="w-14 h-14 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-center transition-all duration-300 group-hover:scale-105"
+                                                className="w-11 h-11 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-center transition-all duration-300 group-hover:scale-105 shrink-0"
                                                 style={{ color: getStatusColor(i.status) }}
                                             >
-                                                <Activity size={24} />
+                                                <Activity size={20} />
                                             </div>
-                                            <div>
-                                                <div className="text-base font-bold text-white group-hover:text-primary-cyan transition-colors">{i.title}</div>
-                                                <div className="text-[10px] text-white/20 mt-1 font-black uppercase tracking-widest flex items-center gap-3">
+                                            <div className="min-w-0">
+                                                <div className="text-sm sm:text-base font-bold text-white group-hover:text-primary-cyan transition-colors truncate">{i.title}</div>
+                                                <div className="text-[10px] text-white/20 mt-1 font-black uppercase tracking-widest flex items-center gap-2 flex-wrap">
                                                     <span>REF-{i.id.slice(0, 6).toUpperCase()}</span>
                                                     <span className="w-1 h-1 rounded-full bg-white/10" />
                                                     <span>{i.category}</span>
@@ -189,13 +189,13 @@ const AdminDashboard = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex gap-6 items-center justify-between md:justify-end">
-                                            <div className="flex gap-3">
+                                        <div className="flex gap-3 items-center justify-between sm:justify-end">
+                                            <div className="flex gap-2 flex-wrap">
                                                 <Badge variant={i.priority === 'High' ? 'error' : 'primary'}>{i.priority}</Badge>
                                                 <Badge variant={i.status}>{i.status.replace('_', ' ')}</Badge>
                                             </div>
-                                            <div className="w-10 h-10 rounded-xl bg-white/[0.02] flex items-center justify-center text-white/10 group-hover:text-primary-cyan group-hover:bg-primary-cyan/5 transition-all">
-                                                <ChevronRight size={18} />
+                                            <div className="w-9 h-9 rounded-xl bg-white/[0.02] flex items-center justify-center text-white/10 group-hover:text-primary-cyan group-hover:bg-primary-cyan/5 transition-all shrink-0">
+                                                <ChevronRight size={16} />
                                             </div>
                                         </div>
                                     </div>
