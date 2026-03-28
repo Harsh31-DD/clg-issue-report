@@ -5,7 +5,6 @@ import {
     LayoutDashboard,
     FileText,
     Shield,
-    Home,
     Settings,
     ChevronRight,
     Command
@@ -41,9 +40,7 @@ export const Sidebar = () => {
 
     const menuItems = isAdmin ? [
         { to: '/admin-dashboard', icon: LayoutDashboard, label: 'Admin Dashboard' },
-        { to: '/home', icon: Home, label: 'Home Page' },
     ] : [
-        { to: '/home', icon: Home, label: 'Home Page' },
         { to: '/dashboard', icon: LayoutDashboard, label: 'Reported Issues' },
         { to: '/report', icon: FileText, label: 'Report New Issue' },
     ];
@@ -57,7 +54,7 @@ export const Sidebar = () => {
                 <div>
                     <h2 className="text-lg font-black text-white font-display uppercase tracking-tight">CIRTS</h2>
                     <p className="text-[9px] font-black text-primary-cyan uppercase tracking-[0.15em]">
-                        {isAdmin ? 'Admin Panel' : 'Student Panel'}
+                        {isAdmin ? 'Admin Panel' : 'Student & Staff'}
                     </p>
                 </div>
             </div>

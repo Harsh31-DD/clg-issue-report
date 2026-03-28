@@ -4,12 +4,13 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+    base: '/clg-issue-report/',  // For GitHub Pages deployment
     plugins: [
         react(),
         tailwindcss(),
     ],
     build: {
-        chunkSizeWarningLimit: 1000, // Increase warning limit to 1000KB
+        chunkSizeWarningLimit: 1000,
         rollupOptions: {
             output: {
                 manualChunks: {
@@ -21,3 +22,4 @@ export default defineConfig({
         },
     },
 })
+

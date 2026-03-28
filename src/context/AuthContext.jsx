@@ -9,32 +9,20 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Initial session check
-        const initSession = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user) {
-                    const { data: profile } = await supabase
-                        .from('profiles')
-                        .select('role')
-                        .eq('id', session.user.id)
-                        .single();
+        let isMounted = true;
 
-                    setUser(session.user);
-                    setUserRole(profile?.role || 'student');
-                }
-            } catch (err) {
-                console.error("Auth init error:", err);
-            } finally {
+        // Safety timeout to prevent infinite loading (e.g. Supabase hang or offline)
+        const loadingTimeout = setTimeout(() => {
+            if (isMounted) {
+                console.warn('[Auth] Safety timeout reached, forcing loading false');
                 setLoading(false);
             }
-        };
+        }, 5000);
 
-        initSession();
-
-        // Listen for changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const handleAuth = async (session) => {
             try {
+                if (!isMounted) return;
+
                 if (session?.user) {
                     const { data: profile } = await supabase
                         .from('profiles')
@@ -42,22 +30,42 @@ export const AuthProvider = ({ children }) => {
                         .eq('id', session.user.id)
                         .single();
 
-                    setUser(session.user);
-                    setUserRole(profile?.role || 'student');
-                } else {
+                    if (isMounted) {
+                        setUser(session.user);
+                        setUserRole(profile?.role || 'student');
+                    }
+                } else if (isMounted) {
                     setUser(null);
                     setUserRole(null);
                 }
             } catch (err) {
-                console.error("Auth change error:", err);
-                setUser(null);
-                setUserRole(null);
+                console.error("[Auth] Handler error:", err);
+                if (isMounted) {
+                    setUser(null);
+                    setUserRole(null);
+                }
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                    clearTimeout(loadingTimeout);
+                }
             }
+        };
+
+        // Initial session check and listener in one go
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            handleAuth(session);
         });
 
-        return () => subscription.unsubscribe();
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            handleAuth(session);
+        });
+
+        return () => {
+            isMounted = false;
+            subscription.unsubscribe();
+            clearTimeout(loadingTimeout);
+        };
     }, []);
 
     const signOut = async () => {

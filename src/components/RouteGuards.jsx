@@ -14,12 +14,13 @@ export const RequireAuth = ({ children, role }) => {
     }
 
     const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+    const isStudentOrStaff = userRole === 'student' || userRole === 'staff';
 
     if (role === 'admin' && !isAdmin) {
         return <Navigate to="/dashboard" replace />;
     }
 
-    if (role === 'student' && isAdmin) {
+    if (role === 'student' && !isStudentOrStaff && isAdmin) {
         return <Navigate to="/admin-dashboard" replace />;
     }
 

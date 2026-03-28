@@ -84,8 +84,7 @@ const AuthPage = () => {
 
     const roles = [
         { id: 'student', label: 'Student', icon: GraduationCap },
-        { id: 'teaching', label: 'Faculty', icon: Briefcase },
-        { id: 'non_teaching', label: 'Technical', icon: HardHat }
+        { id: 'staff', label: 'Staff Member', icon: Briefcase }
     ];
 
     return (
@@ -103,10 +102,10 @@ const AuthPage = () => {
                         </Badge>
                     </div>
                     <h2 className="text-3xl md:text-4xl font-black text-white font-display uppercase tracking-tighter">
-                        {isLogin ? 'Login to your account' : 'Create an Account'}
+                        Student & Staff Portal
                     </h2>
-                    <p className="mt-2 text-[14px] text-white/30 font-medium">
-                        {isLogin ? 'Enter your email and password' : 'Sign up to start reporting campus issues.'}
+                    <p className="mt-2 text-[14px] text-white/30 font-medium tracking-wide">
+                        {isLogin ? 'Enter credentials for the Student & Staff Dashboard' : 'Sign up to start reporting campus issues.'}
                     </p>
                 </div>
 

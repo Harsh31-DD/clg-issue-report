@@ -84,10 +84,10 @@ const HeroPage = () => {
                     )}
                 </div>
 
-                {/* Sub-link for Staff */}
+                {/* Sub-link for Admin */}
                 <div className="mt-8">
                     <Link to="/admin-auth" className="text-[10px] text-white/20 hover:text-primary-cyan transition-colors font-black uppercase tracking-[0.2em] no-underline">
-                        Are you Staff? Access Admin Terminal
+                        Administrative access only
                     </Link>
                 </div>
             </motion.div>

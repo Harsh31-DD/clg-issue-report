@@ -158,8 +158,8 @@ export const Badge = ({ children, variant = 'neutral' }) => {
         // Direct Status Mappings requested by user
         pending: "bg-[#EEE638]/10 text-[#EEE638] border border-[#EEE638]/20",       // Yellow
         noted: "bg-[#5BEEFC]/10 text-[#5BEEFC] border border-[#5BEEFC]/20",         // Blue
-        in_progress: "bg-[#F97316]/10 text-[#F97316] border border-[#F97316]/20",   // Orange
-        resolved: "bg-[#16F686]/10 text-[#16F686] border border-[#16F686]/20"       // Green
+        in_progress: "bg-status-orange/10 text-status-orange border border-status-orange/20",   // Orange
+        resolved: "bg-accent-green/10 text-accent-green border border-accent-green/20"       // Green
     };
 
     return (

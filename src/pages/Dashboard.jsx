@@ -22,6 +22,16 @@ const Dashboard = () => {
         }
     };
 
+    const getStatusColor = (status) => {
+        switch(status) {
+            case 'pending':     return '#EEE638'; // yellow
+            case 'in_progress': return '#F97316'; // orange
+            case 'resolved':    return '#16F686'; // green
+            case 'noted':       return '#5BEEFC'; // cyan
+            default:            return 'rgba(255,255,255,0.2)';
+        }
+    };
+
     const fetchIncidents = async () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -95,9 +105,9 @@ const Dashboard = () => {
     }, []);
 
     const stats = [
-        { label: 'Total Reports', value: incidents.length, icon: Shield, color: 'text-primary-cyan' },
-        { label: 'Pending Review', value: incidents.filter(i => i.status === 'pending').length, icon: Clock, color: 'text-highlight-yellow' },
-        { label: 'Resolved', value: incidents.filter(i => i.status === 'resolved').length, icon: Activity, color: 'text-accent-green' },
+        { label: 'Total Reports',  value: incidents.length, icon: Shield,   color: '#5BEEFC' },
+        { label: 'Pending Review', value: incidents.filter(i => i.status === 'pending').length,  icon: Clock,    color: '#EEE638' },
+        { label: 'Resolved',       value: incidents.filter(i => i.status === 'resolved').length, icon: Activity, color: '#16F686' },
     ];
 
     return (
@@ -124,7 +134,10 @@ const Dashboard = () => {
                 {stats.map(s => (
                     <GlassyCard key={s.label} className="p-8 border-white/5">
                         <div className="flex justify-between items-start mb-6">
-                            <div className={`p-3 rounded-2xl bg-white/[0.02] border border-white/5 ${s.color}`}>
+                            <div
+                                className="p-3 rounded-2xl bg-white/[0.02] border border-white/5"
+                                style={{ color: s.color }}
+                            >
                                 <s.icon size={22} />
                             </div>
                             <Badge variant="primary">{s.label}</Badge>
@@ -175,9 +188,12 @@ const Dashboard = () => {
                                     <Link to={`/issue/${i.id}`} className="no-underline group">
                                         <div className="p-8 flex flex-col md:flex-row md:justify-between md:items-center gap-6 hover:bg-white/[0.02] transition-all cursor-pointer">
                                             <div className="flex gap-6 items-center">
-                                                <div className="w-14 h-14 rounded-2xl bg-primary-cyan/5 border border-primary-cyan/10 flex items-center justify-center text-primary-cyan group-hover:scale-105 transition-transform duration-300">
-                                                    <Shield size={24} />
-                                                </div>
+                                            <div
+                                                className="w-14 h-14 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-center group-hover:scale-105 transition-transform duration-300"
+                                                style={{ color: getStatusColor(i.status) }}
+                                            >
+                                                <Shield size={24} />
+                                            </div>
                                                 <div>
                                                     <div className="text-base font-bold text-white group-hover:text-primary-cyan transition-colors">{i.title}</div>
                                                     <div className="text-[10px] text-white/40 mt-1.5 font-black uppercase tracking-widest">

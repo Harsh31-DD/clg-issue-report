@@ -29,6 +29,16 @@ const AdminDashboard = () => {
         }
     };
 
+    const getStatusColor = (status) => {
+        switch(status) {
+            case 'pending':     return '#EEE638'; // yellow
+            case 'in_progress': return '#F97316'; // orange
+            case 'resolved':    return '#16F686'; // green
+            case 'noted':       return '#5BEEFC'; // cyan
+            default:            return 'rgba(255,255,255,0.2)';
+        }
+    };
+
     useEffect(() => {
         const handleOffline = () => setOffline(true);
         const handleOnline = () => setOffline(false);
@@ -69,10 +79,10 @@ const AdminDashboard = () => {
         : incidents.filter(i => i.status === filter);
 
     const stats = [
-        { label: 'Total Logs', value: incidents.length, icon: Activity, color: 'text-white' },
-        { label: 'Critical', value: incidents.filter(i => i.priority === 'High').length, icon: AlertCircle, color: 'text-red-400' },
-        { label: 'Pending', value: incidents.filter(i => i.status === 'pending').length, icon: Clock, color: 'text-highlight-yellow' },
-        { label: 'Resolved', value: incidents.filter(i => i.status === 'resolved').length, icon: CheckCircle, color: 'text-accent-green' },
+        { label: 'Total Logs',  value: incidents.length, icon: Activity,     color: '#5BEEFC' },
+        { label: 'Critical',    value: incidents.filter(i => i.priority === 'High').length,    icon: AlertCircle,  color: '#EF4444' },
+        { label: 'Pending',     value: incidents.filter(i => i.status === 'pending').length,   icon: Clock,        color: '#EEE638' },
+        { label: 'Resolved',    value: incidents.filter(i => i.status === 'resolved').length,  icon: CheckCircle,  color: '#16F686' },
     ];
 
     return (
@@ -98,7 +108,10 @@ const AdminDashboard = () => {
                 {stats.map(s => (
                     <GlassyCard key={s.label} className="p-8 border-white/5">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className={`p-2.5 rounded-xl bg-white/[0.02] border border-white/5 ${s.color}`}>
+                            <div
+                                className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5"
+                                style={{ color: s.color }}
+                            >
                                 <s.icon size={18} />
                             </div>
                             <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">{s.label}</span>
@@ -159,11 +172,10 @@ const AdminDashboard = () => {
                                 <Link to={`/admin/issue/${i.id}`} className="no-underline group">
                                     <div className="p-8 flex flex-col md:flex-row md:justify-between md:items-center gap-8 hover:bg-white/[0.02] transition-all cursor-pointer">
                                         <div className="flex gap-6 items-center">
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${
-                                                i.priority === 'High' 
-                                                    ? 'bg-red-500/5 text-red-500 border border-red-500/10' 
-                                                    : 'bg-white/[0.02] text-white/20 border border-white/5'
-                                            } group-hover:scale-105`}>
+                                            <div
+                                                className="w-14 h-14 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-center transition-all duration-300 group-hover:scale-105"
+                                                style={{ color: getStatusColor(i.status) }}
+                                            >
                                                 <Activity size={24} />
                                             </div>
                                             <div>

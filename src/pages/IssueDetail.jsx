@@ -39,6 +39,16 @@ const IssueDetail = () => {
         fetchOne();
     }, [id, user]);
 
+    const getStatusColor = (status) => {
+        switch(status) {
+            case 'pending':     return '#EEE638';
+            case 'in_progress': return '#F97316';
+            case 'resolved':    return '#16F686';
+            case 'noted':       return '#5BEEFC';
+            default:            return 'rgba(255,255,255,0.2)';
+        }
+    };
+
     const handleUpdate = async (field, value, customToast) => {
         setUpdating(true);
         try {
@@ -105,7 +115,10 @@ const IssueDetail = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
                 <div className="lg:col-span-2 flex flex-col gap-10">
                     <GlassyCard className="p-10 md:p-14 relative overflow-hidden group border-white/5">
-                        <div className="absolute top-0 right-0 p-10 opacity-[0.02] group-hover:opacity-[0.04] transition-opacity duration-1000 pointer-events-none">
+                        <div
+                            className="absolute top-0 right-0 p-10 opacity-[0.02] group-hover:opacity-[0.04] transition-opacity duration-1000 pointer-events-none"
+                            style={{ color: getStatusColor(incident.status) }}
+                        >
                             <Shield size={220} />
                         </div>
                         
@@ -135,7 +148,10 @@ const IssueDetail = () => {
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                             <GlassyCard className="p-10 border-primary-cyan/10 shadow-[0_30px_60px_-15px_rgba(91,238,252,0.05)]">
                                 <div className="flex items-center gap-4 mb-10">
-                                    <div className="p-3 rounded-2xl bg-primary-cyan/5 border border-primary-cyan/10 text-primary-cyan">
+                                    <div
+                                        className="p-3 rounded-2xl bg-white/[0.02] border border-white/5"
+                                        style={{ color: getStatusColor(incident.status) }}
+                                    >
                                         <Activity size={20} />
                                     </div>
                                     <div>
