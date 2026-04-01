@@ -41,7 +41,6 @@ function App() {
 
     return (
         <>
-            <div className="premium-bg" />
             <AnimatePresence mode="wait">
                 {loading ? (
                     <GlobalLoading key="initial-loading" />
